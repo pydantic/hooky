@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     reviewers: list[str] = ['samuelcolvin', 'PrettyWood', 'hramezani']
     request_update_trigger: str = 'please update'
     request_review_trigger: str = 'please review'
-    awaiting_update_label: str = 'awaiting author updates'
-    awaiting_review_label: str = 'awaiting review'
+    awaiting_update_label: str = 'awaiting author revision'
+    awaiting_review_label: str = 'ready for review'
     no_change_file: str = 'skip change file check'
 
 

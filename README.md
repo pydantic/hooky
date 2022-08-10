@@ -6,9 +6,9 @@ Simple FastAPI app to receive and respond to GitHub webhooks.
 
 This tool responds to magic phrases in pull request commends:
 * **"please update"** - requests an update from the PR author,
-  the PR author is assigned and the "awaiting author updates" label is added
+  the PR author is assigned and the "awaiting author revision" label is added
 * **"please review"** - requests a review from project reviewers,
-  the reviewers are assigned and the "awaiting review" label is added
+  the reviewers are assigned and the "ready for review" label is added
 
 ## Change File Checks
 
