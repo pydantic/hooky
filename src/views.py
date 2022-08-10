@@ -1,10 +1,11 @@
 import hashlib
 import hmac
+import os
 from pathlib import Path
 
 from asyncer import asyncify
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
 from .logic import Event, process_event
 from .settings import Settings, log
@@ -16,7 +17,10 @@ THIS_DIR = Path(__file__).parent
 
 @app.get('/')
 def index():
-    return FileResponse(THIS_DIR / 'index.html')
+    index_content = (THIS_DIR / 'index.html').read_text()
+    commit = os.getenv('RENDER_GIT_COMMIT', '???')
+    index_content = index_content.replace('{{ COMMIT }}', commit)
+    return HTMLResponse(content=index_content)
 
 
 @app.get('/favicon.ico')
