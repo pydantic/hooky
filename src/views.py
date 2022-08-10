@@ -27,7 +27,6 @@ def favicon():
 @app.post('/')
 async def webhook(request: Request, event: Event, x_hub_signature_256: str = Header(default='')):
     request_body = await request.body()
-    print('headers:', dict(request.headers))
 
     digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
 

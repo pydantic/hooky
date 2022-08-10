@@ -32,6 +32,7 @@ class Issue(BaseModel):
 
 class Repository(BaseModel):
     full_name: str
+    owner: User
 
 
 class IssueEvent(BaseModel):
@@ -109,7 +110,7 @@ def label_assign(
         return False, 'review has no body'
     body = comment.body.lower()
 
-    g = get_client(settings)
+    g = get_client(event.repository.owner.login, settings)
     gh_pr = g.get_repo(event.repository.full_name).get_pull(pr.number)
 
     log(f'{comment.user.login} ({event_type}): {body!r}')
