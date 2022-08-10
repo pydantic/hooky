@@ -3,11 +3,11 @@ import hmac
 from pathlib import Path
 
 from asyncer import asyncify
-from fastapi import FastAPI, Header, Request, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 
+from .logic import Event, process_event
 from .settings import Settings, log
-from .logic import process_event, Event
 
 settings = Settings()
 app = FastAPI()

@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Literal, cast
 
 from github import Github, PullRequest as GhPullRequest
 from pydantic import BaseModel
@@ -59,38 +59,54 @@ Event = IssueEvent | PullRequestEvent
 
 
 def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
-    force_assign_author = False
-
     if hasattr(event, 'issue'):
         event = cast(IssueEvent, event)
         if event.issue.pull_request is None:
             return False, 'action only applies to pull requests, not issues'
 
-        comment = event.comment
-        pr = event.issue
-        event_type = 'comment'
+        return label_assign(
+            event=event,
+            event_type='comment',
+            pr=event.issue,
+            comment=event.comment,
+            force_assign_author=False,
+            settings=settings,
+        )
     else:
         event = cast(PullRequestEvent, event)
-        comment = event.review
-        if comment.body is None:
-            return False, 'review has no body'
-        pr = event.pull_request
-        force_assign_author = event.review.state == 'changes_requested'
-        event_type = 'review'
+        return label_assign(
+            event=event,
+            event_type='review',
+            pr=event.pull_request,
+            comment=event.review,
+            force_assign_author=event.review.state == 'changes_requested',
+            settings=settings,
+        )
 
-    commenter = comment.user.login
+
+def label_assign(
+    *,
+    event: Event,
+    event_type: Literal['comment', 'review'],
+    pr: Issue | PullRequest,
+    comment: Comment | Review,
+    force_assign_author: bool,
+    settings: Settings,
+) -> tuple[bool, str]:
+    if comment.body is None:
+        return False, 'review has no body'
     body = comment.body.lower()
 
     g = Github(settings.access_token.get_secret_value())
     gh_pr = g.get_repo(event.repository.full_name).get_pull(pr.number)
 
-    log(f'{commenter} ({event_type}): {body!r}')
+    log(f'{comment.user.login} ({event_type}): {body!r}')
 
-    p = ProcessFunctions(gh_pr, comment, pr.user.login, settings)
+    label_assign_ = LabelAssign(gh_pr, comment, pr.user.login, settings)
     if settings.request_review_trigger in body:
-        action_taken, msg = p.request_review()
+        action_taken, msg = label_assign_.request_review()
     elif settings.request_update_trigger in body or force_assign_author:
-        action_taken, msg = p.assign_author()
+        action_taken, msg = label_assign_.assign_author()
     else:
         action_taken = False
         msg = (
@@ -98,12 +114,12 @@ def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
             f'found in comment body, not proceeding'
         )
     if action_taken:
-        p.add_reaction(event_type)
+        label_assign_.add_reaction(event_type)
 
     return action_taken, msg
 
 
-class ProcessFunctions:
+class LabelAssign:
     def __init__(self, gh_pr: GhPullRequest, comment: Comment, author: str, settings: Settings):
         self.gh_pr = gh_pr
         self.comment = comment
@@ -114,10 +130,8 @@ class ProcessFunctions:
 
     def assign_author(self) -> tuple[bool, str]:
         if not self.commenter_is_reviewer:
-            return (
-                False,
-                f'Only reviewers {self.show_reviewers()} can assign the author, not {self.commenter}',
-            )
+            return False, f'Only reviewers {self.show_reviewers()} can assign the author, not {self.commenter}'
+
         self.gh_pr.add_to_labels(self.settings.awaiting_update_label)
         self.remove_label(self.settings.awaiting_review_label)
         self.gh_pr.add_to_assignees(self.author)
@@ -126,16 +140,13 @@ class ProcessFunctions:
             self.gh_pr.remove_from_assignees(*to_remove)
         return (
             True,
-            f'Author {self.author} successfully assigned to PR, '
-            f'"{self.settings.awaiting_update_label}" label added',
+            f'Author {self.author} successfully assigned to PR, "{self.settings.awaiting_update_label}" label added',
         )
 
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
         if not (self.commenter_is_reviewer or commenter_is_author):
-            return False, (
-                f'Only the PR author {self.author} or reviewers can request a review, not {self.commenter}'
-            )
+            return False, f'Only the PR author {self.author} or reviewers can request a review, not {self.commenter}'
         self.gh_pr.add_to_labels(self.settings.awaiting_review_label)
         self.remove_label(self.settings.awaiting_update_label)
         self.gh_pr.add_to_assignees(*self.settings.reviewers)
