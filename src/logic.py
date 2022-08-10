@@ -115,7 +115,7 @@ def label_assign(
 
     log(f'{comment.user.login} ({event_type}): {body!r}')
 
-    label_assign_ = LabelAssign(gh_pr, comment, pr.user.login, settings)
+    label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
     if settings.request_review_trigger in body:
         action_taken, msg = label_assign_.request_review()
     elif settings.request_update_trigger in body or force_assign_author:
@@ -126,15 +126,21 @@ def label_assign(
             f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
             f'found in comment body'
         )
-    if action_taken:
-        label_assign_.add_reaction(event_type)
 
     return action_taken, f'[Label and assign] {msg}'
 
 
 class LabelAssign:
-    def __init__(self, gh_pr: GhPullRequest, comment: Comment, author: str, settings: Settings):
+    def __init__(
+        self,
+        gh_pr: GhPullRequest,
+        event_type: Literal['comment', 'review'],
+        comment: Comment,
+        author: str,
+        settings: Settings,
+    ):
         self.gh_pr = gh_pr
+        self.event_type = event_type
         self.comment = comment
         self.commenter = comment.user.login
         self.author = author
@@ -145,6 +151,7 @@ class LabelAssign:
         if not self.commenter_is_reviewer:
             return False, f'Only reviewers {self.show_reviewers()} can assign the author, not {self.commenter}'
 
+        self.add_reaction()
         self.gh_pr.add_to_labels(self.settings.awaiting_update_label)
         self.remove_label(self.settings.awaiting_review_label)
         self.gh_pr.add_to_assignees(self.author)
@@ -160,6 +167,8 @@ class LabelAssign:
         commenter_is_author = self.author == self.commenter
         if not (self.commenter_is_reviewer or commenter_is_author):
             return False, f'Only the PR author {self.author} or reviewers can request a review, not {self.commenter}'
+
+        self.add_reaction()
         self.gh_pr.add_to_labels(self.settings.awaiting_review_label)
         self.remove_label(self.settings.awaiting_update_label)
         self.gh_pr.add_to_assignees(*self.settings.reviewers)
@@ -171,12 +180,12 @@ class LabelAssign:
             f'"{self.settings.awaiting_review_label}" label added',
         )
 
-    def add_reaction(self, event_type: str) -> None:
+    def add_reaction(self) -> None:
         """
         Currently it seems there's no way to create a reaction on a review body, only on issue comments
         and review comments, although it's possible in the UI
         """
-        if event_type == 'comment':
+        if self.event_type == 'comment':
             self.gh_pr.get_issue_comment(self.comment.id).create_reaction('+1')
 
     def remove_label(self, label: str):

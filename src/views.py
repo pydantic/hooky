@@ -19,7 +19,7 @@ THIS_DIR = Path(__file__).parent
 def index():
     index_content = (THIS_DIR / 'index.html').read_text()
     commit = os.getenv('RENDER_GIT_COMMIT', '???')
-    index_content = index_content.replace('{{ COMMIT }}', commit)
+    index_content = index_content.replace('{{ COMMIT }}', commit).replace('{{ SHORT_COMMIT }}', commit[:7])
     return HTMLResponse(content=index_content)
 
 
