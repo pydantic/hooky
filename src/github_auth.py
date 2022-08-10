@@ -17,11 +17,10 @@ def get_client(account: str, settings: Settings) -> Github:
     redis_client = redis.from_url(settings.redis_dsn)
     cache_key = f'github_access_token_{account}'
 
-    access_token: bytes | None = redis_client.get(cache_key)
-    if access_token:
-        t = access_token.decode()
-        log(f'using cached access token {t:.5}... for {account}')
-        return Github(t)
+    if access_token := redis_client.get(cache_key):
+        access_token = access_token.decode()
+        log(f'using cached access token {access_token:.7}... for account {account}')
+        return Github(access_token)
 
     pem_bytes = settings.github_app_secret_key.read_bytes()
 
@@ -45,5 +44,5 @@ def get_client(account: str, settings: Settings) -> Github:
     r = session.post(f'https://api.github.com/app/installations/{installation_id}/access_tokens', headers=headers)
     access_token = r.json()['token']
     redis_client.setex(cache_key, 3600 - 100, access_token)
-    log(f'created new access token {access_token:.5}... for {account}')
+    log(f'created new access token {access_token:.5}... for account {account}')
     return Github(access_token)
