@@ -1,3 +1,6 @@
 asyncer==0.0.1
 fastapi==0.79.0
-uvicorn[standard]==0.18.2
+httptools==0.4.0
+PyGithub==1.55
+uvicorn==0.18.2
+uvloop==0.16.0

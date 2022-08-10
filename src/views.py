@@ -28,11 +28,12 @@ def favicon():
 async def webhook(request: Request, event: Event, x_hub_signature_256: str = Header(default='')):
     request_body = await request.body()
 
-    digest = hmac.new(settings.webhook_secret, request_body, hashlib.sha256).hexdigest()
+    digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(f'sha256={digest}', x_hub_signature_256):
         log(f'{digest=} {x_hub_signature_256=}')
         raise HTTPException(status_code=403, detail='Invalid signature')
+
     action_taken, message = await asyncify(process_event)(event=event, settings=settings)
     message = f'Action taken: {message}' if action_taken else f'Webhook ignored: {message}'
     log(message)

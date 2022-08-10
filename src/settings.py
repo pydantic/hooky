@@ -1,9 +1,9 @@
-from pydantic import BaseSettings, SecretStr
+from pydantic import BaseSettings, SecretBytes, SecretStr
 
 
 class Settings(BaseSettings):
     access_token: SecretStr
-    webhook_secret: bytes
+    webhook_secret: SecretBytes
     reviewers: list[str] = ['samuelcolvin']
     request_update_trigger: str = 'please update'
     request_review_trigger: str = 'please review'

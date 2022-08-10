@@ -1,1 +1,1 @@
-from .main import app  # noqa: F401
+from .views import app  # noqa: F401
