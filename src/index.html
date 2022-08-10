@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Hooky</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        background-color: #0d1117;
+        color: #c9d1d9;
+        font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        margin: 10px 10px 20px;
+        font-size: 16px;
+      }
+      @media only screen and (min-width: 600px) {
+        body {
+          margin: 40px 10px 60px;
+        }
+      }
+      main {
+        width: min(calc(100vw - 20px), 902px);
+        box-sizing: border-box;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        padding: 10px 15px 40px;
+        word-wrap: break-word;
+      }
+      a {
+        color: #58a6ff;
+        text-decoration: none;
+      }
+    </style>
+</head>
+
+<body>
+  <main>
+    <h1>Hooky</h1>
+    <aside>Simple FastAPI app to receive and respond to GitHub webhooks.</aside>
+    <p>See the project <a href="https://github.com/pydanticy/hooky">README</a> for more information.</p>
+  </main>
+</body>
+</html>
