@@ -1,9 +1,10 @@
 import re
 from typing import Literal
 
-from github import Github, PullRequest as GhPullRequest
+from github import PullRequest as GhPullRequest
 from pydantic import BaseModel
 
+from .github_auth import get_client
 from .settings import Settings, log
 
 __all__ = 'process_event', 'Event'
@@ -108,7 +109,7 @@ def label_assign(
         return False, 'review has no body'
     body = comment.body.lower()
 
-    g = Github(settings.access_token.get_secret_value())
+    g = get_client(settings)
     gh_pr = g.get_repo(event.repository.full_name).get_pull(pr.number)
 
     log(f'{comment.user.login} ({event_type}): {body!r}')
@@ -196,14 +197,14 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     if event.action not in required_actions:
         return False, f'[Check change file] file change not checked on "{event.action}"'
 
-    log(f'Checking change file after "{event.action}" on PR #{event.pull_request.number}')
+    log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
-    g = Github(settings.access_token.get_secret_value())
+    g = get_client(settings)
     gh_pr = g.get_repo(event.repository.full_name).get_pull(event.pull_request.number)
 
     body = event.pull_request.body.lower() if event.pull_request.body else ''
     if settings.no_change_file in body:
-        return set_status(gh_pr, 'success', f'found {settings.no_change_file!r} in PR body')
+        return set_status(gh_pr, 'success', f'Found {settings.no_change_file!r} in PR body')
 
     file_match = find_file(gh_pr)
     if file_match is None:
@@ -235,7 +236,7 @@ def set_status(
     last_commit.create_status(
         state,
         description=description,
-        target_url='https://github.com/pydantic/hooky#change-file-checks',
+        target_url='https://github.com/pydantic/hooky#readme',
         context='change-file-checks',
     )
     return True, f'[Check change file] status set to "{state}" with description "{description}"'

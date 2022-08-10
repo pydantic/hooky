@@ -12,12 +12,12 @@ This tool responds to magic phrases in pull request commends:
 
 ## Change File Checks
 
-This tool checks pull requests to enforce a "change file" is added as part of the pull request.
+This tool checks pull requests to enforce a "change file" has been added.
 
 See [here](https://github.com/pydantic/pydantic/tree/master/changes#pending-changes) for details on the format
-required.
+expected.
 
-To skip this check the magic phrase "skip change file check" can be added to the pull request body.
+To skip this check the magic phrase **"skip change file check"** can be added to the pull request body.
 
 Otherwise, the following checks are performed on the pull request:
 * A change file matching `changes/<ID>-<author>.md` has been added

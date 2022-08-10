@@ -1,6 +1,10 @@
 asyncer==0.0.1
+cryptography==37.0.4
 fastapi==0.79.0
 httptools==0.4.0
 PyGithub==1.55
+PyJWT==2.4.0
+redis==4.3.4
+requests==2.28.1
 uvicorn==0.18.2
 uvloop==0.16.0
