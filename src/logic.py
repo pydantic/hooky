@@ -1,4 +1,5 @@
-from typing import Literal, cast
+import re
+from typing import Literal
 
 from github import Github, PullRequest as GhPullRequest
 from pydantic import BaseModel
@@ -47,20 +48,27 @@ class Review(BaseModel):
 class PullRequest(BaseModel):
     number: int
     user: User
+    state: str
+    body: str | None
 
 
-class PullRequestEvent(BaseModel):
+class PullRequestReviewEvent(BaseModel):
     review: Review
     pull_request: PullRequest
     repository: Repository
 
 
-Event = IssueEvent | PullRequestEvent
+class PullRequestUpdateEvent(BaseModel):
+    action: str
+    pull_request: PullRequest
+    repository: Repository
+
+
+Event = IssueEvent | PullRequestReviewEvent | PullRequestUpdateEvent
 
 
 def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
-    if hasattr(event, 'issue'):
-        event = cast(IssueEvent, event)
+    if isinstance(event, IssueEvent):
         if event.issue.pull_request is None:
             return False, 'action only applies to pull requests, not issues'
 
@@ -72,8 +80,7 @@ def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
             force_assign_author=False,
             settings=settings,
         )
-    else:
-        event = cast(PullRequestEvent, event)
+    elif isinstance(event, PullRequestReviewEvent):
         return label_assign(
             event=event,
             event_type='review',
@@ -82,6 +89,10 @@ def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
             force_assign_author=event.review.state == 'changes_requested',
             settings=settings,
         )
+    elif isinstance(event, PullRequestUpdateEvent):
+        return check_change_file(event, settings)
+    else:
+        return False, 'unknown event type'
 
 
 def label_assign(
@@ -111,12 +122,12 @@ def label_assign(
         action_taken = False
         msg = (
             f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
-            f'found in comment body, not proceeding'
+            f'found in comment body'
         )
     if action_taken:
         label_assign_.add_reaction(event_type)
 
-    return action_taken, msg
+    return action_taken, f'[Label and assign] {msg}'
 
 
 class LabelAssign:
@@ -173,3 +184,58 @@ class LabelAssign:
 
     def show_reviewers(self):
         return ', '.join(f'"{r}"' for r in self.settings.reviewers)
+
+
+closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#{}'
+required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
+
+
+def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tuple[bool, str]:
+    if event.pull_request.state != 'open':
+        return False, '[Check change file] pull request is closed'
+    if event.action not in required_actions:
+        return False, f'[Check change file] file change not checked on "{event.action}"'
+
+    log(f'Checking change file after "{event.action}" on PR #{event.pull_request.number}')
+
+    g = Github(settings.access_token.get_secret_value())
+    gh_pr = g.get_repo(event.repository.full_name).get_pull(event.pull_request.number)
+
+    body = event.pull_request.body.lower() if event.pull_request.body else ''
+    if settings.no_change_file in body:
+        return set_status(gh_pr, 'success', f'found {settings.no_change_file!r} in PR body')
+
+    file_match = find_file(gh_pr)
+    if file_match is None:
+        return set_status(gh_pr, 'error', 'No change file found')
+
+    file_id, file_author = file_match.groups()
+    pr_author = event.pull_request.user.login
+    if file_author != pr_author:
+        msg = f'File "{file_match.group()}" has wrong author, expected "{pr_author}"'
+        return set_status(gh_pr, 'error', msg)
+
+    if int(file_id) == event.pull_request.number or re.search(closed_issue_template.format(file_id), body):
+        return set_status(gh_pr, 'success', 'Change file looks good')
+    else:
+        return set_status(gh_pr, 'error', 'Change file ID does not match PR number or closed issue')
+
+
+def find_file(gh_pr: GhPullRequest) -> re.Match | None:
+    for changed_file in gh_pr.get_files():
+        match = re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename)
+        if match:
+            return match
+
+
+def set_status(
+    gh_pr: GhPullRequest, state: Literal['error', 'failure', 'pending', 'success'], description: str
+) -> tuple[bool, str]:
+    *_, last_commit = gh_pr.get_commits()
+    last_commit.create_status(
+        state,
+        description=description,
+        target_url='https://github.com/pydantic/hooky#change-file-checks',
+        context='change-file-checks',
+    )
+    return True, f'[Check change file] status set to "{state}" with description "{description}"'

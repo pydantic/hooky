@@ -35,6 +35,6 @@ async def webhook(request: Request, event: Event, x_hub_signature_256: str = Hea
         raise HTTPException(status_code=403, detail='Invalid signature')
 
     action_taken, message = await asyncify(process_event)(event=event, settings=settings)
-    message = f'Action taken: {message}' if action_taken else f'Webhook ignored: {message}'
+    message = message if action_taken else f'{message}, no action taken'
     log(message)
     return PlainTextResponse(message, status_code=200 if action_taken else 202)
