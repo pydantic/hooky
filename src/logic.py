@@ -200,7 +200,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
-    g = get_client(settings)
+    g = get_client(event.repository.owner.login, settings)
     gh_pr = g.get_repo(event.repository.full_name).get_pull(event.pull_request.number)
 
     body = event.pull_request.body.lower() if event.pull_request.body else ''
@@ -214,8 +214,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     file_id, file_author = file_match.groups()
     pr_author = event.pull_request.user.login
     if file_author != pr_author:
-        msg = f'File "{file_match.group()}" has wrong author, expected "{pr_author}"'
-        return set_status(gh_pr, 'error', msg)
+        return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
 
     if int(file_id) == event.pull_request.number or re.search(closed_issue_template.format(file_id), body):
         return set_status(gh_pr, 'success', 'Change file looks good')
@@ -225,8 +224,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
 def find_file(gh_pr: GhPullRequest) -> re.Match | None:
     for changed_file in gh_pr.get_files():
-        match = re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename)
-        if match:
+        if match := re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename):
             return match
 
 

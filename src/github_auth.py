@@ -11,7 +11,7 @@ from .settings import Settings, log
 
 def get_client(account: str, settings: Settings) -> Github:
     """
-    This could all be async, but since it's call from sync code (that can't be async because of Github)
+    This could all be async, but since it's call from sync code (that can't be async because of GitHub)
     there's no point in making it async.
     """
     redis_client = redis.from_url(settings.redis_dsn)
@@ -20,7 +20,7 @@ def get_client(account: str, settings: Settings) -> Github:
     access_token: bytes | None = redis_client.get(cache_key)
     if access_token:
         t = access_token.decode()
-        log(f'using cached access token {t:.5}...')
+        log(f'using cached access token {t:.5}... for {account}')
         return Github(t)
 
     pem_bytes = settings.github_app_secret_key.read_bytes()
@@ -45,5 +45,5 @@ def get_client(account: str, settings: Settings) -> Github:
     r = session.post(f'https://api.github.com/app/installations/{installation_id}/access_tokens', headers=headers)
     access_token = r.json()['token']
     redis_client.setex(cache_key, 3600 - 100, access_token)
-    log(f'created new access token {access_token:.5}...')
+    log(f'created new access token {access_token:.5}... for {account}')
     return Github(access_token)
