@@ -234,7 +234,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
 def find_file(gh_pr: GhPullRequest) -> re.Match | None:
     for changed_file in gh_pr.get_files():
-        if match := re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename):
+        if changed_file.status == 'added' and (match := re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename)):
             return match
 
 
