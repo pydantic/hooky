@@ -214,7 +214,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     body = event.pull_request.body.lower() if event.pull_request.body else ''
     if settings.no_change_file in body:
-        return set_status(gh_pr, 'success', f'Found {settings.no_change_file!r} in PR body')
+        return set_status(gh_pr, 'success', f'Found {settings.no_change_file!r} in pull request body')
 
     file_match = find_file(gh_pr)
     if file_match is None:
@@ -225,10 +225,12 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     if file_author != pr_author:
         return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
 
-    if int(file_id) == event.pull_request.number or re.search(closed_issue_template.format(file_id), body):
-        return set_status(gh_pr, 'success', 'Change file looks good')
+    if int(file_id) == event.pull_request.number:
+        return set_status(gh_pr, 'success', 'Change file ID matches pull request ID')
+    elif re.search(closed_issue_template.format(file_id), body):
+        return set_status(gh_pr, 'success', 'Change file ID matches issue closed by the pull request')
     else:
-        return set_status(gh_pr, 'error', 'Change file ID does not match PR number or closed issue')
+        return set_status(gh_pr, 'error', 'Change file ID does not match pull request or closed issue')
 
 
 def find_file(gh_pr: GhPullRequest) -> re.Match | None:
