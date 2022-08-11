@@ -72,7 +72,7 @@ Event = IssueEvent | PullRequestReviewEvent | PullRequestUpdateEvent
 def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
     if isinstance(event, IssueEvent):
         if event.issue.pull_request is None:
-            return False, 'action only applies to pull requests, not issues'
+            return False, 'action only applies to Pull Requests, not Issues'
 
         return label_assign(
             event=event,
@@ -203,7 +203,7 @@ required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
 
 def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tuple[bool, str]:
     if event.pull_request.state != 'open':
-        return False, '[Check change file] pull request is closed'
+        return False, f'[Check change file] Pull Request is {event.pull_request.state}, not open'
     if event.action not in required_actions:
         return False, f'[Check change file] file change not checked on "{event.action}"'
 
@@ -214,7 +214,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     body = event.pull_request.body.lower() if event.pull_request.body else ''
     if settings.no_change_file in body:
-        return set_status(gh_pr, 'success', f'Found {settings.no_change_file!r} in pull request body')
+        return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
 
     file_match = find_file(gh_pr)
     if file_match is None:
@@ -224,13 +224,12 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     pr_author = event.pull_request.user.login
     if file_author.lower() != pr_author.lower():
         return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
-
-    if int(file_id) == event.pull_request.number:
-        return set_status(gh_pr, 'success', 'Change file ID matches pull request ID')
+    elif int(file_id) == event.pull_request.number:
+        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches the Pull Request')
     elif re.search(closed_issue_template.format(file_id), body):
-        return set_status(gh_pr, 'success', 'Change file ID matches issue closed by the pull request')
+        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request')
     else:
-        return set_status(gh_pr, 'error', 'Change file ID does not match pull request or closed issue')
+        return set_status(gh_pr, 'error', 'Change file ID does not match Pull Request or closed Issue')
 
 
 def find_file(gh_pr: GhPullRequest) -> re.Match | None:
