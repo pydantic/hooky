@@ -222,7 +222,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     file_id, file_author = file_match.groups()
     pr_author = event.pull_request.user.login
-    if file_author != pr_author:
+    if file_author.lower() != pr_author.lower():
         return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
 
     if int(file_id) == event.pull_request.number:
