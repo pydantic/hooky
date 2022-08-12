@@ -1,10 +1,11 @@
 # Hooky
 
-Simple FastAPI app to receive and respond to GitHub webhooks.
+Receive and respond to GitHub webhooks, built for use with [pydantic](https://github.com/pydantic/pydantic).
 
 ## Label and Assign
 
-This tool responds to magic phrases in pull request commends:
+This tool responds to magic phrases in pull request comments:
+
 * **"please update"** - requests an update from the PR author,
   the PR author is assigned and the "awaiting author revision" label is added
 * **"please review"** - requests a review from project reviewers,
