@@ -3,24 +3,26 @@ from time import time
 import jwt
 import redis
 from cryptography.hazmat.backends import default_backend
-from github import Github
+from github import Github, PullRequest as GhPullRequest
 from requests import Session
 
 from .settings import Settings, log
 
+__all__ = ('get_repo_client',)
 
-def get_client(account: str, settings: Settings) -> Github:
+
+def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
     """
     This could all be async, but since it's call from sync code (that can't be async because of GitHub)
     there's no point in making it async.
     """
     redis_client = redis.from_url(settings.redis_dsn)
-    cache_key = f'github_access_token_{account}'
+    cache_key = f'github_access_token_{repo_full_name}'
 
     if access_token := redis_client.get(cache_key):
         access_token = access_token.decode()
-        log(f'using cached access token {access_token:.7}... for account {account}')
-        return Github(access_token)
+        log(f'Using cached access token {access_token:.7}... for {repo_full_name}')
+        return Github(access_token).get_repo(repo_full_name)
 
     pem_bytes = settings.github_app_secret_key.read_bytes()
 
@@ -32,17 +34,17 @@ def get_client(account: str, settings: Settings) -> Github:
 
     headers = {'Authorization': f'Bearer {jwt_value}', 'Accept': 'application/vnd.github+json'}
     session = Session()
-    r = session.get('https://api.github.com/app/installations', headers=headers)
 
-    # TODO find the correct installation
-    installations = r.json()
-    try:
-        installation_id = next(inst['id'] for inst in installations if inst['account']['login'] == account)
-    except StopIteration as e:
-        raise ValueError(f'No installation found for account {account} in {len(installations)} installations') from e
+    r = session.get(f'https://api.github.com/repos/{repo_full_name}/installation', headers=headers)
+    r.raise_for_status()
+    installation_id = r.json()['id']
 
     r = session.post(f'https://api.github.com/app/installations/{installation_id}/access_tokens', headers=headers)
+    r.raise_for_status()
     access_token = r.json()['token']
+
+    # access token's lifetime is 1 hour
+    # https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app
     redis_client.setex(cache_key, 3600 - 100, access_token)
-    log(f'created new access token {access_token:.5}... for account {account}')
-    return Github(access_token)
+    log(f'Created new access token {access_token:.5}... for {repo_full_name}')
+    return Github(access_token).get_repo(repo_full_name)

@@ -7,7 +7,7 @@ from asyncer import asyncify
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
-from .logic import Event, process_event
+from .logic import process_event
 from .settings import Settings, log
 
 settings = Settings()
@@ -29,7 +29,7 @@ def favicon():
 
 
 @app.post('/')
-async def webhook(request: Request, event: Event, x_hub_signature_256: str = Header(default='')):
+async def webhook(request: Request, x_hub_signature_256: str = Header(default='')):
     request_body = await request.body()
 
     digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
@@ -38,7 +38,7 @@ async def webhook(request: Request, event: Event, x_hub_signature_256: str = Hea
         log(f'{digest=} {x_hub_signature_256=}')
         raise HTTPException(status_code=403, detail='Invalid signature')
 
-    action_taken, message = await asyncify(process_event)(event=event, settings=settings)
+    action_taken, message = await asyncify(process_event)(request_body=request_body, settings=settings)
     message = message if action_taken else f'{message}, no action taken'
     log(message)
     return PlainTextResponse(message, status_code=200 if action_taken else 202)

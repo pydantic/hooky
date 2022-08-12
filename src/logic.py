@@ -1,13 +1,14 @@
 import re
+from textwrap import indent
 from typing import Literal
 
 from github import PullRequest as GhPullRequest
-from pydantic import BaseModel
+from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import get_client
+from .github_auth import get_repo_client
 from .settings import Settings, log
 
-__all__ = 'process_event', 'Event'
+__all__ = ('process_event',)
 
 
 class User(BaseModel):
@@ -69,7 +70,13 @@ class PullRequestUpdateEvent(BaseModel):
 Event = IssueEvent | PullRequestReviewEvent | PullRequestUpdateEvent
 
 
-def process_event(event: Event, settings: Settings) -> tuple[bool, str]:
+def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
+    try:
+        event = parse_raw_as(Event, request_body)  # type: ignore
+    except ValueError as e:
+        log(indent(f'{type(e).__name__}: {e}', '  '))
+        return False, 'Error parsing request body'
+
     if isinstance(event, IssueEvent):
         if event.issue.pull_request is None:
             return False, 'action only applies to Pull Requests, not Issues'
@@ -110,8 +117,7 @@ def label_assign(
         return False, 'review has no body'
     body = comment.body.lower()
 
-    g = get_client(event.repository.owner.login, settings)
-    gh_pr = g.get_repo(event.repository.full_name).get_pull(pr.number)
+    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(pr.number)
 
     log(f'{comment.user.login} ({event_type}): {body!r}')
 
@@ -209,8 +215,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
-    g = get_client(event.repository.owner.login, settings)
-    gh_pr = g.get_repo(event.repository.full_name).get_pull(event.pull_request.number)
+    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(event.pull_request.number)
 
     body = event.pull_request.body.lower() if event.pull_request.body else ''
     if settings.no_change_file in body:
