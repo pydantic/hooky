@@ -46,5 +46,5 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
     # access token's lifetime is 1 hour
     # https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app
     redis_client.setex(cache_key, 3600 - 100, access_token)
-    log(f'Created new access token {access_token:.5}... for {repo_full_name}')
+    log(f'Created new access token {access_token:.7}... for {repo_full_name}')
     return Github(access_token).get_repo(repo_full_name)
