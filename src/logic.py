@@ -204,7 +204,7 @@ class LabelAssign:
 
 
 closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+' \
-                        r'(#|https://github.com/[-a-zA-Z0-9]+/[-a-zA-Z0-9]+/issues/){}'
+                        r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
 
 
