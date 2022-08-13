@@ -204,7 +204,7 @@ class LabelAssign:
 
 
 closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+' \
-                        r'(#{0}|https://github.com/pydantic/pydantic/issues/{0})'
+                        r'(#|https://github.com/[-a-zA-Z0-9]+/[-a-zA-Z0-9]+/issues/){}'
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
 
 
