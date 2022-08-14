@@ -203,7 +203,8 @@ class LabelAssign:
         return ', '.join(f'"{r}"' for r in self.settings.reviewers)
 
 
-closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#{}'
+closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+' \
+                        r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
 
 
