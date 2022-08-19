@@ -203,8 +203,10 @@ class LabelAssign:
         return ', '.join(f'"{r}"' for r in self.settings.reviewers)
 
 
-closed_issue_template = r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+' \
-                        r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
+closed_issue_template = (
+    r'(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+'
+    r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
+)
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
 
 
@@ -213,6 +215,8 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
         return False, f'[Check change file] Pull Request is {event.pull_request.state}, not open'
     if event.action not in required_actions:
         return False, f'[Check change file] file change not checked on "{event.action}"'
+    if event.pull_request.user.login.endswith('[bot]'):
+        return False, '[Check change file] Pull Request author is a bot'
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
