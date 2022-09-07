@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := all
-isort = isort src tests
-black = black src tests
+paths = src tests
 
 .PHONY: install
 install:
@@ -12,19 +11,24 @@ install:
 
 .PHONY: format
 format:
-	$(isort)
-	$(black)
+	pyupgrade --py310-plus --exit-zero-even-if-changed `find $(paths) -name "*.py" -type f`
+	isort $(paths)
+	black $(paths)
 
 .PHONY: lint
 lint:
-	flake8 --max-line-length 120 src tests
-	$(isort) --check-only --df
-	$(black) --check --diff
+	flake8 $(paths)
+	isort $(paths) --check-only --df
+	black $(paths) --check --diff
 
 .PHONY: test
 test:
 	coverage run -m pytest
 
+.PHONY: testcov
+testcov: test
+	@echo "building coverage html"
+	@coverage html
 
 .PHONY: all
 all: format lint test
