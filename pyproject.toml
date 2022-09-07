@@ -1,3 +1,27 @@
+[project]
+name = 'hooky'
+description = 'Receive and respond to GitHub webhooks'
+version = '1'
+dependencies = [
+    'asyncer',
+    'cryptography',
+    'fastapi',
+    'httptools',
+    'PyGithub',
+    'PyJWT',
+    'redis',
+    'requests',
+    'uvicorn',
+    'uvloop',
+]
+
+[tool.flake8]
+max_line_length = 120
+max_complexity = 14
+inline_quotes = 'single'
+multiline_quotes = 'double'
+ignore = ['E203', 'W503']
+
 [tool.pytest.ini_options]
 testpaths = 'tests'
 log_format = '%(name)s %(levelname)s: %(message)s'

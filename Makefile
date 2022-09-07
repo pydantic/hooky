@@ -1,6 +1,5 @@
 .DEFAULT_GOAL := all
-isort = isort src tests
-black = black src tests
+paths = src tests
 
 .PHONY: install
 install:
@@ -12,14 +11,14 @@ install:
 
 .PHONY: format
 format:
-	$(isort)
-	$(black)
+	isort $(paths)
+	black $(paths)
 
 .PHONY: lint
 lint:
-	flake8 --max-line-length 120 src tests
-	$(isort) --check-only --df
-	$(black) --check --diff
+	flake8 $(paths)
+	isort $(paths) --check-only --df
+	black $(paths) --check --diff
 
 .PHONY: test
 test:
