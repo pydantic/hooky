@@ -10,12 +10,13 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from .logic import process_event
 from .settings import Settings, log
 
-settings = Settings()
+settings = Settings.load_cached()
 app = FastAPI()
 THIS_DIR = Path(__file__).parent
 
 
 @app.get('/')
+@app.head('/')
 def index():
     index_content = (THIS_DIR / 'index.html').read_text()
     commit = os.getenv('RENDER_GIT_COMMIT', '???')
@@ -24,6 +25,7 @@ def index():
 
 
 @app.get('/favicon.ico')
+@app.head('/favicon.ico')
 def favicon():
     return FileResponse(THIS_DIR / 'favicon.ico')
 

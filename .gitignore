@@ -4,4 +4,5 @@
 *.py[cod]
 *.egg-info/
 /sandbox/
-*.pem
+/*.pem
+/.coverage

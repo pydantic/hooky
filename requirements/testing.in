@@ -1,5 +1,6 @@
 coverage[toml]
 dirty-equals
+foxglove-web
 pytest
 pytest-mock
 pytest-sugar

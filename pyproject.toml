@@ -13,6 +13,9 @@ dependencies = [
     'requests',
     'uvicorn',
     'uvloop',
+    # to do remove once httpx updates `pip install -r requirements/testing.txt -r requirements/pyproject.txt`
+    # no longer breaks
+    'h11<=0.12.0'
 ]
 
 [tool.flake8]
@@ -25,7 +28,10 @@ ignore = ['E203', 'W503']
 [tool.pytest.ini_options]
 testpaths = 'tests'
 log_format = '%(name)s %(levelname)s: %(message)s'
-filterwarnings = 'error'
+filterwarnings = [
+    'error',
+    'ignore:There is no current event loop:DeprecationWarning',
+]
 timeout = 30
 xfail_strict = true
 
