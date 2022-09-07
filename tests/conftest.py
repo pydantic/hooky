@@ -1,7 +1,12 @@
+import asyncio
+
 import pytest
+from foxglove.test_server import create_dummy_server
 from foxglove.testing import TestClient
 
 from src.settings import Settings
+
+from .dummy_server import routes
 
 
 @pytest.fixture(name='settings', scope='session')
@@ -21,9 +26,34 @@ class Client(TestClient):
     """
 
 
+@pytest.fixture(name='loop')
+def fix_loop(settings):
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop
+
+
 @pytest.fixture(name='client')
-def fix_client(settings: Settings):
+def fix_client(settings: Settings, loop):
     from src import app
 
     with Client(app) as client:
         yield client
+
+
+@pytest.fixture(name='dummy_server')
+def _fix_dummy_server(loop):
+    from src import github_auth
+
+    loop = asyncio.get_event_loop()
+    ctx = {'dynamic': {}}
+    ds = loop.run_until_complete(create_dummy_server(loop, extra_routes=routes, extra_context=ctx))
+    ctx['dynamic']['github_base_url'] = ds.server_name
+    github_auth.github_base_url = ds.server_name
+
+    yield ds
+
+    loop.run_until_complete(ds.stop())

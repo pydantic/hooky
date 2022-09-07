@@ -1,3 +1,4 @@
+aiohttp
 coverage[toml]
 dirty-equals
 foxglove-web

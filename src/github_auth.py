@@ -9,6 +9,7 @@ from requests import Session
 from .settings import Settings, log
 
 __all__ = ('get_repo_client',)
+github_base_url = 'https://api.github.com'
 
 
 def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
@@ -22,7 +23,7 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
     if access_token := redis_client.get(cache_key):
         access_token = access_token.decode()
         log(f'Using cached access token {access_token:.7}... for {repo_full_name}')
-        return Github(access_token).get_repo(repo_full_name)
+        return Github(access_token, base_url=github_base_url).get_repo(repo_full_name)
 
     pem_bytes = settings.github_app_secret_key.read_bytes()
 
@@ -35,11 +36,11 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
     headers = {'Authorization': f'Bearer {jwt_value}', 'Accept': 'application/vnd.github+json'}
     session = Session()
 
-    r = session.get(f'https://api.github.com/repos/{repo_full_name}/installation', headers=headers)
+    r = session.get(f'{github_base_url}/repos/{repo_full_name}/installation', headers=headers)
     r.raise_for_status()
     installation_id = r.json()['id']
 
-    r = session.post(f'https://api.github.com/app/installations/{installation_id}/access_tokens', headers=headers)
+    r = session.post(f'{github_base_url}/app/installations/{installation_id}/access_tokens', headers=headers)
     r.raise_for_status()
     access_token = r.json()['token']
 
@@ -47,4 +48,4 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> GhPullRequest:
     # https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app
     redis_client.setex(cache_key, 3600 - 100, access_token)
     log(f'Created new access token {access_token:.7}... for {repo_full_name}')
-    return Github(access_token).get_repo(repo_full_name)
+    return Github(access_token, base_url=github_base_url).get_repo(repo_full_name)

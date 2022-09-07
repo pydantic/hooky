@@ -1,5 +1,10 @@
 # Hooky
 
+[![CI](https://github.com/pydantic/hooky/workflows/CI/badge.svg?event=push)](https://github.com/pydantic/hooky/actions?query=event%3Apush+branch%3Amain+workflow%3ACI)
+[![Coverage](https://codecov.io/gh/pydantic/hooky/branch/main/graph/badge.svg)](https://codecov.io/gh/pydantic/hooky)
+[![license](https://img.shields.io/github/license/pydantic/hooky.svg)](https://github.com/pydantic/hooky/blob/main/LICENSE)
+
+
 Receive and respond to GitHub webhooks, built for use with [pydantic](https://github.com/pydantic/pydantic).
 
 ## Label and Assign

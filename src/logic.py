@@ -117,7 +117,8 @@ def label_assign(
         return False, 'review has no body'
     body = comment.body.lower()
 
-    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(pr.number)
+    gh = get_repo_client(event.repository.full_name, settings)
+    gh_pr = gh.get_pull(pr.number)
 
     log(f'{comment.user.login} ({event_type}): {body!r}')
 
@@ -132,7 +133,6 @@ def label_assign(
             f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
             f'found in comment body'
         )
-
     return action_taken, f'[Label and assign] {msg}'
 
 
