@@ -31,10 +31,10 @@ jobs:
 
     services:
       redis:
-        image: redis:${{ matrix.redis }}
+        image: redis:6
         ports:
-        - 6379:6379
-        options: --entrypoint redis-server
+          - 6379:6379
+        options: '--entrypoint redis-server'
 
     steps:
     - uses: actions/checkout@v2
