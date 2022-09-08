@@ -1,9 +1,10 @@
 import re
 from dataclasses import dataclass
+from unittest.mock import MagicMock
 
 import pytest
+from github import GithubException
 
-from src.github_auth import GithubRepo, RepoConfig
 from src.logic import (
     Comment,
     LabelAssign,
@@ -15,64 +16,9 @@ from src.logic import (
     check_change_file_content,
     find_change_file,
 )
+from src.repo_config import RepoConfig
 
-
-class Magic:
-    def __init__(self, **attrs):
-        self.__attrs__ = attrs
-        self.__access__ = []
-
-    def __getattr__(self, item):
-        if attr := self.__attrs__.get(item):
-            self.__access__.append((item, None, None, attr))
-            return attr
-
-        def func(*args, **kwargs):
-            return_value = Magic()
-            self.__access__.append((item, args, kwargs, return_value))
-            return return_value
-
-        return func
-
-    def __call__(self, *args, **kwargs):
-        new_self = Magic(**self.__attrs__)
-        self.__access__.append(('__call__', args, kwargs, new_self))
-        return new_self
-
-    def __iter__(self):
-        iter_items = self.__attrs__.get('__iter__', [])
-        self.__access__.append(('__iter__', None, None, iter_items))
-        return iter(iter_items)
-
-    @property
-    def __history__(self):
-        d = {}
-        for item, args, kwargs, return_value in self.__access__:
-            d[item] = value = {}
-            if args:
-                value['args'] = magic_history(args)
-            if kwargs:
-                value['kwargs'] = magic_history(kwargs)
-            if isinstance(return_value, Magic):
-                if return_value.__access__:
-                    value['return'] = return_value.__history__
-            else:
-                value['return'] = magic_history(return_value)
-        return d
-
-    def __repr__(self):
-        return f'Magic({self.__history__})'
-
-
-def magic_history(v):
-    if isinstance(v, Magic):
-        return v.__history__
-    elif isinstance(v, (list, tuple, set)):
-        return type(v)(magic_history(i) for i in v)
-    elif isinstance(v, dict):
-        return {k: magic_history(v) for k, v in v.items()}
-    else:
-        return v
+from .conftest import Magic
 
 
 def test_assign_author(settings):
@@ -234,9 +180,12 @@ def test_change_no_change_comment(settings, mocker):
     )
     gh = Magic(
         _requester=Magic(_Requester__connection=Magic(session=Magic())),
-        get_pull=Magic(get_commits=Magic(__iter__=[None, Magic()])),
+        get_pull=Magic(
+            get_commits=Magic(__iter__=[None, Magic()]),
+            base=Magic(repo=Magic(get_contents=MagicMock(side_effect=GithubException(404, 'Not Found', {})))),
+        ),
     )
-    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(GithubRepo(gh, RepoConfig())))
+    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
     assert check_change_file(e, settings) == (
         True,
         (
@@ -244,7 +193,6 @@ def test_change_no_change_comment(settings, mocker):
             '"Found "skip change file check" in Pull Request body"'
         ),
     )
-    # debug(gh.__history__)
 
 
 class FakeGhContext:
@@ -266,9 +214,12 @@ def test_change_no_change_file(settings, mocker):
     )
     gh = Magic(
         _requester=Magic(_Requester__connection=Magic(session=Magic())),
-        get_pull=Magic(get_commits=Magic(__iter__=[None, Magic()])),
+        get_pull=Magic(
+            get_commits=Magic(__iter__=[None, Magic()]),
+            base=Magic(repo=Magic(get_contents=MagicMock(side_effect=GithubException(404, 'Not Found', {})))),
+        ),
     )
-    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(GithubRepo(gh, RepoConfig())))
+    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
     assert check_change_file(e, settings) == (
         True,
         '[Check change file] status set to "error" with description "No change file found"',

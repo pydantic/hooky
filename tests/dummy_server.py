@@ -9,7 +9,7 @@ async def repo_details(request: Request) -> Response:
     github_base_url = request.app['dynamic']['github_base_url']
     org = request.match_info['org']
     repo = request.match_info['repo']
-    return json_response({'url': f'{github_base_url}/repos/{org}/{repo}'})
+    return json_response({'url': f'{github_base_url}/repos/{org}/{repo}', 'full_name': f'{org}/{repo}'})
 
 
 async def pull_details(request: Request) -> Response:
@@ -21,6 +21,12 @@ async def pull_details(request: Request) -> Response:
         {
             'url': f'{github_base_url}/repos/{org}/{repo}/pulls/{pull_number}',
             'issue_url': f'{github_base_url}/repos/{org}/{repo}/issues/{pull_number}',
+            'base': {
+                'label': 'foobar:main',
+                'ref': 'main',
+                'sha': 'abc1234',
+                'repo': {'url': f'{github_base_url}/repos/{org}/{repo}', 'full_name': f'{org}/{repo}'},
+            },
         }
     )
 

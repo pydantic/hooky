@@ -5,7 +5,8 @@ from typing import Literal
 from github import PullRequest as GhPullRequest
 from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import RepoConfig, get_repo_client
+from .github_auth import get_repo_client
+from .repo_config import RepoConfig
 from .settings import Settings, log
 
 __all__ = ('process_event',)
@@ -116,20 +117,21 @@ def label_assign(
         return False, '[Label and assign] review has no body'
     body = comment.body.lower()
 
-    with get_repo_client(event.repository.full_name, settings) as gh:
-        gh_pr = gh.repo.get_pull(pr.number)
+    with get_repo_client(event.repository.full_name, settings) as gh_repo:
+        gh_pr = gh_repo.get_pull(pr.number)
+        config = RepoConfig.load(gh_pr, settings)
 
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
-        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, gh.config, settings)
-        if gh.config.request_review_trigger in body:
+        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, config, settings)
+        if config.request_review_trigger in body:
             action_taken, msg = label_assign_.request_review()
-        elif gh.config.request_update_trigger in body or force_assign_author:
+        elif config.request_update_trigger in body or force_assign_author:
             action_taken, msg = label_assign_.assign_author()
         else:
             action_taken = False
             msg = (
-                f'neither {gh.config.request_update_trigger!r} nor {gh.config.request_review_trigger!r} '
+                f'neither {config.request_update_trigger!r} nor {config.request_review_trigger!r} '
                 f'found in comment body'
             )
     return action_taken, f'[Label and assign] {msg}'
@@ -224,12 +226,13 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
         return False, '[Check change file] Pull Request author is a bot'
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
-    with get_repo_client(event.repository.full_name, settings) as gh:
-        gh_pr = gh.repo.get_pull(event.pull_request.number)
+    with get_repo_client(event.repository.full_name, settings) as gh_repo:
+        gh_pr = gh_repo.get_pull(event.pull_request.number)
+        config = RepoConfig.load(gh_pr, settings)
 
         body = event.pull_request.body.lower() if event.pull_request.body else ''
-        if gh.config.no_change_file in body:
-            return set_status(gh_pr, 'success', f'Found "{gh.config.no_change_file}" in Pull Request body')
+        if config.no_change_file in body:
+            return set_status(gh_pr, 'success', f'Found "{config.no_change_file}" in Pull Request body')
         elif file_match := find_change_file(gh_pr):
             return set_status(gh_pr, *check_change_file_content(file_match, body, event.pull_request))
         else:
