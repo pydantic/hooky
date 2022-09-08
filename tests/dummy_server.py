@@ -1,3 +1,5 @@
+import base64
+
 from aiohttp import web
 from aiohttp.abc import Request
 from aiohttp.web_response import Response, json_response
@@ -79,6 +81,16 @@ async def remove_assignee(_request: Request) -> Response:
     return json_response({'assignees': []})
 
 
+pyproject_toml = b"""
+[tool.hooky]
+reviewers = ['user1', 'user2']
+"""
+
+
+async def py_project_content(_request: Request) -> Response:
+    return json_response({'content': base64.b64encode(pyproject_toml).decode(), 'encoding': 'base64', 'type': 'file'})
+
+
 async def repo_apps_installed(request: Request) -> Response:
     assert request.headers['Accept'] == 'application/vnd.github+json'
     return json_response({'id': '654321'})
@@ -106,6 +118,7 @@ routes = [
     web.post('/repos/{org}/{repo}/issues/{issue_id}/labels', add_labels),
     web.post('/repos/{org}/{repo}/issues/{issue_id}/assignees', add_assignee),
     web.delete('/repos/{org}/{repo}/issues/{issue_id}/assignees', remove_assignee),
+    web.get('/repos/{org}/{repo}/contents/pyproject.toml', py_project_content),
     web.get('/repos/{org}/{repo}/installation', repo_apps_installed),
     web.post('/app/installations/{installation}/access_tokens', installation_access_token),
     web.route('*', '/{path:.*}', catch_all),

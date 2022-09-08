@@ -13,6 +13,7 @@ dependencies = [
     'requests',
     'uvicorn',
     'uvloop',
+    'rtoml',
     # to do remove once httpx updates `pip install -r requirements/testing.txt -r requirements/pyproject.txt`
     # no longer breaks
     'h11<=0.12.0'

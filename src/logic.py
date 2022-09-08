@@ -5,7 +5,7 @@ from typing import Literal
 from github import PullRequest as GhPullRequest
 from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import close_github_session, get_repo_client
+from .github_auth import RepoConfig, get_repo_client
 from .settings import Settings, log
 
 __all__ = ('process_event',)
@@ -116,25 +116,22 @@ def label_assign(
         return False, '[Label and assign] review has no body'
     body = comment.body.lower()
 
-    gh = get_repo_client(event.repository.full_name, settings)
-    try:
-        gh_pr = gh.get_pull(pr.number)
+    with get_repo_client(event.repository.full_name, settings) as gh:
+        gh_pr = gh.repo.get_pull(pr.number)
 
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
-        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
-        if settings.request_review_trigger in body:
+        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, gh.config, settings)
+        if gh.config.request_review_trigger in body:
             action_taken, msg = label_assign_.request_review()
-        elif settings.request_update_trigger in body or force_assign_author:
+        elif gh.config.request_update_trigger in body or force_assign_author:
             action_taken, msg = label_assign_.assign_author()
         else:
             action_taken = False
             msg = (
-                f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
+                f'neither {gh.config.request_update_trigger!r} nor {gh.config.request_review_trigger!r} '
                 f'found in comment body'
             )
-    finally:
-        close_github_session(gh)
     return action_taken, f'[Label and assign] {msg}'
 
 
@@ -145,6 +142,7 @@ class LabelAssign:
         event_type: Literal['comment', 'review'],
         comment: Comment,
         author: str,
+        config: RepoConfig,
         settings: Settings,
     ):
         self.gh_pr = gh_pr
@@ -152,23 +150,24 @@ class LabelAssign:
         self.comment = comment
         self.commenter = comment.user.login
         self.author = author
+        self.config = config
         self.settings = settings
-        self.commenter_is_reviewer = self.commenter in settings.reviewers
+        self.commenter_is_reviewer = self.commenter in config.reviewers
 
     def assign_author(self) -> tuple[bool, str]:
         if not self.commenter_is_reviewer:
             return False, f'Only reviewers {self.show_reviewers()} can assign the author, not {self.commenter}'
 
         self.add_reaction()
-        self.gh_pr.add_to_labels(self.settings.awaiting_update_label)
-        self.remove_label(self.settings.awaiting_review_label)
+        self.gh_pr.add_to_labels(self.config.awaiting_update_label)
+        self.remove_label(self.config.awaiting_review_label)
         self.gh_pr.add_to_assignees(self.author)
-        to_remove = [r for r in self.settings.reviewers if r != self.author]
+        to_remove = [r for r in self.config.reviewers if r != self.author]
         if to_remove:
             self.gh_pr.remove_from_assignees(*to_remove)
         return (
             True,
-            f'Author {self.author} successfully assigned to PR, "{self.settings.awaiting_update_label}" label added',
+            f'Author {self.author} successfully assigned to PR, "{self.config.awaiting_update_label}" label added',
         )
 
     def request_review(self) -> tuple[bool, str]:
@@ -177,15 +176,15 @@ class LabelAssign:
             return False, f'Only the PR author {self.author} or reviewers can request a review, not {self.commenter}'
 
         self.add_reaction()
-        self.gh_pr.add_to_labels(self.settings.awaiting_review_label)
-        self.remove_label(self.settings.awaiting_update_label)
-        self.gh_pr.add_to_assignees(*self.settings.reviewers)
-        if self.author not in self.settings.reviewers:
+        self.gh_pr.add_to_labels(self.config.awaiting_review_label)
+        self.remove_label(self.config.awaiting_update_label)
+        self.gh_pr.add_to_assignees(*self.config.reviewers)
+        if self.author not in self.config.reviewers:
             self.gh_pr.remove_from_assignees(self.author)
         return (
             True,
             f'Reviewers {self.show_reviewers()} successfully assigned to PR, '
-            f'"{self.settings.awaiting_review_label}" label added',
+            f'"{self.config.awaiting_review_label}" label added',
         )
 
     def add_reaction(self) -> None:
@@ -202,7 +201,10 @@ class LabelAssign:
             self.gh_pr.remove_from_labels(label)
 
     def show_reviewers(self):
-        return ', '.join(f'"{r}"' for r in self.settings.reviewers)
+        if self.config.reviewers:
+            return ', '.join(f'"{r}"' for r in self.config.reviewers)
+        else:
+            return '(no reviewers configured)'
 
 
 closed_issue_template = (
@@ -222,20 +224,16 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
         return False, '[Check change file] Pull Request author is a bot'
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
-
-    gh = get_repo_client(event.repository.full_name, settings)
-    try:
-        gh_pr = gh.get_pull(event.pull_request.number)
+    with get_repo_client(event.repository.full_name, settings) as gh:
+        gh_pr = gh.repo.get_pull(event.pull_request.number)
 
         body = event.pull_request.body.lower() if event.pull_request.body else ''
-        if settings.no_change_file in body:
-            return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
+        if gh.config.no_change_file in body:
+            return set_status(gh_pr, 'success', f'Found "{gh.config.no_change_file}" in Pull Request body')
         elif file_match := find_change_file(gh_pr):
             return set_status(gh_pr, *check_change_file_content(file_match, body, event.pull_request))
         else:
             return set_status(gh_pr, 'error', 'No change file found')
-    finally:
-        close_github_session(gh)
 
 
 def check_change_file_content(file_match: re.Match, body: str, pr: PullRequest) -> tuple[CommitStatus, str]:

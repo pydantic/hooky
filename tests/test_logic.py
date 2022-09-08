@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from src.github_auth import GithubRepo, RepoConfig
 from src.logic import (
     Comment,
     LabelAssign,
@@ -76,7 +77,14 @@ def magic_history(v):
 
 def test_assign_author(settings):
     gh_pr = Magic()
-    la = LabelAssign(gh_pr, 'comment', Comment(body='x', user=User(login='user1'), id=123456), 'user1', settings)
+    la = LabelAssign(
+        gh_pr,
+        'comment',
+        Comment(body='x', user=User(login='user1'), id=123456),
+        'user1',
+        RepoConfig(reviewers=['user1', 'user2']),
+        settings,
+    )
     assert la.assign_author() == (
         True,
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
@@ -91,9 +99,15 @@ def test_assign_author(settings):
 
 
 def test_assign_author_remove_label(settings):
-    settings = settings.copy(update={'reviewers': ['user1']})
     gh_pr = Magic(get_labels=Magic(__iter__=[Magic(name='ready for review')]))
-    la = LabelAssign(gh_pr, 'comment', Comment(body='x', user=User(login='user1'), id=123456), 'user1', settings)
+    la = LabelAssign(
+        gh_pr,
+        'comment',
+        Comment(body='x', user=User(login='user1'), id=123456),
+        'user1',
+        RepoConfig(reviewers=['user1']),
+        settings,
+    )
     assert la.assign_author() == (
         True,
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
@@ -111,7 +125,14 @@ def test_assign_author_remove_label(settings):
 
 def test_request_review(settings):
     gh_pr = Magic()
-    la = LabelAssign(gh_pr, 'comment', Comment(body='x', user=User(login='user1'), id=123456), 'other', settings)
+    la = LabelAssign(
+        gh_pr,
+        'comment',
+        Comment(body='x', user=User(login='user1'), id=123456),
+        'other',
+        RepoConfig(reviewers=['user1', 'user2']),
+        settings,
+    )
     acted, msg = la.request_review()
     assert acted
     assert msg == 'Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
@@ -126,7 +147,14 @@ def test_request_review(settings):
 
 def test_request_review_from_review(settings):
     gh_pr = Magic()
-    la = LabelAssign(gh_pr, 'review', Comment(body='x', user=User(login='other'), id=123456), 'other', settings)
+    la = LabelAssign(
+        gh_pr,
+        'review',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'other',
+        RepoConfig(reviewers=['user1', 'user2']),
+        settings,
+    )
     acted, msg = la.request_review()
     assert acted
     assert msg == 'Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
@@ -140,7 +168,9 @@ def test_request_review_from_review(settings):
 
 def test_request_review_not_author(settings):
     gh_pr = Magic()
-    la = LabelAssign(gh_pr, 'comment', Comment(body='x', user=User(login='commenter'), id=123456), 'the_auth', settings)
+    la = LabelAssign(
+        gh_pr, 'comment', Comment(body='x', user=User(login='commenter'), id=123456), 'the_auth', RepoConfig(), settings
+    )
     acted, msg = la.request_review()
     assert not acted
     assert msg == 'Only the PR author the_auth or reviewers can request a review, not commenter'
@@ -148,8 +178,24 @@ def test_request_review_not_author(settings):
 
 def test_assign_author_not_reviewer(settings):
     gh_pr = Magic()
-    la = LabelAssign(gh_pr, 'comment', Comment(body='x', user=User(login='other'), id=123456), 'user1', settings)
+    la = LabelAssign(
+        gh_pr,
+        'comment',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'user1',
+        RepoConfig(reviewers=['user1', 'user2']),
+        settings,
+    )
     assert la.assign_author() == (False, 'Only reviewers "user1", "user2" can assign the author, not other')
+    assert gh_pr.__history__ == {}
+
+
+def test_assign_author_no_reviewers(settings):
+    gh_pr = Magic()
+    la = LabelAssign(
+        gh_pr, 'comment', Comment(body='x', user=User(login='other'), id=123456), 'user1', RepoConfig(), settings
+    )
+    assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not other')
     assert gh_pr.__history__ == {}
 
 
@@ -190,7 +236,7 @@ def test_change_no_change_comment(settings, mocker):
         _requester=Magic(_Requester__connection=Magic(session=Magic())),
         get_pull=Magic(get_commits=Magic(__iter__=[None, Magic()])),
     )
-    mocker.patch('src.logic.get_repo_client', return_value=gh)
+    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(GithubRepo(gh, RepoConfig())))
     assert check_change_file(e, settings) == (
         True,
         (
@@ -199,6 +245,17 @@ def test_change_no_change_comment(settings, mocker):
         ),
     )
     # debug(gh.__history__)
+
+
+class FakeGhContext:
+    def __init__(self, gh):
+        self.gh = gh
+
+    def __enter__(self):
+        return self.gh
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 def test_change_no_change_file(settings, mocker):
@@ -211,10 +268,10 @@ def test_change_no_change_file(settings, mocker):
         _requester=Magic(_Requester__connection=Magic(session=Magic())),
         get_pull=Magic(get_commits=Magic(__iter__=[None, Magic()])),
     )
-    mocker.patch('src.logic.get_repo_client', return_value=gh)
+    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(GithubRepo(gh, RepoConfig())))
     assert check_change_file(e, settings) == (
         True,
-        ('[Check change file] status set to "error" with description "No change file found"'),
+        '[Check change file] status set to "error" with description "No change file found"',
     )
     # debug(gh.__history__)
 
