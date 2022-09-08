@@ -210,6 +210,7 @@ closed_issue_template = (
     r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
 )
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
+CommitStatus = Literal['error', 'failure', 'pending', 'success']
 
 
 def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tuple[bool, str]:
@@ -229,23 +230,25 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
         body = event.pull_request.body.lower() if event.pull_request.body else ''
         if settings.no_change_file in body:
             return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
-
-        file_match = find_change_file(gh_pr)
-        if file_match is None:
-            return set_status(gh_pr, 'error', 'No change file found')
-
-        file_id, file_author = file_match.groups()
-        pr_author = event.pull_request.user.login
-        if file_author.lower() != pr_author.lower():
-            return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
-        elif int(file_id) == event.pull_request.number:
-            return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches the Pull Request')
-        elif re.search(closed_issue_template.format(file_id), body):
-            return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request')
+        elif file_match := find_change_file(gh_pr):
+            return set_status(gh_pr, *check_change_file_content(file_match, body, event.pull_request))
         else:
-            return set_status(gh_pr, 'error', 'Change file ID does not match Pull Request or closed Issue')
+            return set_status(gh_pr, 'error', 'No change file found')
     finally:
         close_github_session(gh)
+
+
+def check_change_file_content(file_match: re.Match, body: str, pr: PullRequest) -> tuple[CommitStatus, str]:
+    file_id, file_author = file_match.groups()
+    pr_author = pr.user.login
+    if file_author.lower() != pr_author.lower():
+        return 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"'
+    elif int(file_id) == pr.number:
+        return 'success', f'Change file ID #{file_id} matches the Pull Request'
+    elif re.search(closed_issue_template.format(file_id), body):
+        return 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request'
+    else:
+        return 'error', 'Change file ID does not match Pull Request or closed Issue'
 
 
 def find_change_file(gh_pr: GhPullRequest) -> re.Match | None:
@@ -254,9 +257,7 @@ def find_change_file(gh_pr: GhPullRequest) -> re.Match | None:
             return match
 
 
-def set_status(
-    gh_pr: GhPullRequest, state: Literal['error', 'failure', 'pending', 'success'], description: str
-) -> tuple[bool, str]:
+def set_status(gh_pr: GhPullRequest, state: CommitStatus, description: str) -> tuple[bool, str]:
     *_, last_commit = gh_pr.get_commits()
     last_commit.create_status(
         state,
