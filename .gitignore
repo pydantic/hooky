@@ -6,3 +6,4 @@
 /sandbox/
 /*.pem
 /.coverage
+.DS_Store
