@@ -33,10 +33,13 @@ class FakeRepo:
 @pytest.mark.parametrize(
     'content,log_contains',
     [
-        (None, 'test_org/test_repo#None, No pyproject.toml found, using defaults: 404 "Not found"'),
-        ('foobar', 'test_org/test_repo#None, Invalid pyproject.toml, using defaults'),
-        ('x = 4', 'test_org/test_repo#None, No [tools.hooky] section found, using defaults'),
-        ('[tool.hooky]\nreviewers="foobar"', 'test_org/test_repo#None, Error validating hooky config, using defaults'),
+        (None, 'test_org/test_repo#[default], No pyproject.toml found, using defaults: 404 "Not found"'),
+        ('foobar', 'test_org/test_repo#[default], Invalid pyproject.toml, using defaults'),
+        ('x = 4', 'test_org/test_repo#[default], No [tools.hooky] section found, using defaults'),
+        (
+            '[tool.hooky]\nreviewers="foobar"',
+            'test_org/test_repo#[default], Error validating hooky config, using defaults',
+        ),
     ],
 )
 def test_get_config_invalid(content, log_contains, capsys):
@@ -84,7 +87,7 @@ class CustomPr:
     base: FakeBase
 
 
-def test_cached_default(settings, flush_redis):
+def test_cached_default(settings, flush_redis, capsys):
     repo = FakeRepo({'main': None, 'NotSet': valid_config})
     pr = CustomPr(base=FakeBase(repo=repo, ref='main'))
     config = RepoConfig.load(pr, settings)
@@ -97,3 +100,5 @@ def test_cached_default(settings, flush_redis):
         'pyproject.toml:NotSet -> success',
         'pyproject.toml:main -> error',
     ]
+    out, err = capsys.readouterr()
+    assert "test_org/test_repo#[default], config: reviewers=['foobar', 'barfoo'] request_update_trigger='eggs'" in out

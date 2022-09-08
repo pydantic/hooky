@@ -43,27 +43,31 @@ class RepoConfig(BaseModel):
     @classmethod
     def _load_raw(cls, repo: 'GhRepository', *, ref: str | None = None) -> 'RepoConfig | None':
         kwargs = {'ref': ref} if ref else {}
+        prefix = f'{repo.full_name}#{ref}' if ref else f'{repo.full_name}#[default]'
         try:
             f = repo.get_contents('pyproject.toml', **kwargs)
         except GithubException as exc:
-            log(f'{repo.full_name}#{ref}, No pyproject.toml found, using defaults: {exc}')
+            log(f'{prefix}, No pyproject.toml found, using defaults: {exc}')
             return None
 
         content = base64.b64decode(f.content.encode())
         try:
             config = rtoml.loads(content.decode())
         except ValueError:
-            log(f'{repo.full_name}#{ref}, Invalid pyproject.toml, using defaults')
+            log(f'{prefix}, Invalid pyproject.toml, using defaults')
             return None
         try:
             hooky_config = config['tool']['hooky']
         except KeyError:
-            log(f'{repo.full_name}#{ref}, No [tools.hooky] section found, using defaults')
+            log(f'{prefix}, No [tools.hooky] section found, using defaults')
             return None
 
         try:
-            return cls.parse_obj(hooky_config)
+            config = cls.parse_obj(hooky_config)
         except ValidationError as e:
-            log(f'{repo.full_name}#{ref}, Error validating hooky config, using defaults')
+            log(f'{prefix}, Error validating hooky config, using defaults')
             log(indent(f'{type(e).__name__}: {e}', '  '))
             return None
+        else:
+            log(f'{prefix}, config: {config}')
+            return config
