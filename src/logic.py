@@ -229,6 +229,8 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_pr = gh_repo.get_pull(event.pull_request.number)
         config = RepoConfig.load(gh_pr, settings)
+        if not config.require_change_file:
+            return False, '[Check change file] change file not required'
 
         body = event.pull_request.body.lower() if event.pull_request.body else ''
         if config.no_change_file in body:

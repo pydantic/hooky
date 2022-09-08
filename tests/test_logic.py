@@ -1,3 +1,4 @@
+import base64
 import re
 from dataclasses import dataclass
 from unittest.mock import MagicMock
@@ -225,6 +226,24 @@ def test_change_no_change_file(settings, mocker):
         '[Check change file] status set to "error" with description "No change file found"',
     )
     # debug(gh.__history__)
+
+
+def test_change_file_not_required(settings, mocker):
+    e = PullRequestUpdateEvent(
+        action='opened',
+        pull_request=PullRequest(number=123, state='open', user=User(login='foobar'), body=None),
+        repository=Repository(full_name='user/repo', owner=User(login='user1')),
+    )
+    config_change_not_required = base64.b64encode(b'[tool.hooky]\nrequire_change_file = false').decode()
+    gh = Magic(
+        _requester=Magic(_Requester__connection=Magic(session=Magic())),
+        get_pull=Magic(
+            get_commits=Magic(__iter__=[None, Magic()]),
+            base=Magic(repo=Magic(get_contents=Magic(content=config_change_not_required))),
+        ),
+    )
+    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
+    assert check_change_file(e, settings) == (False, '[Check change file] change file not required')
 
 
 def test_file_content_match_pr():

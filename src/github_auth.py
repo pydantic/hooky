@@ -58,5 +58,4 @@ class GithubContext:
         return self._repo
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if gh := self._gh:  # pragma: no branch
-            gh._Github__requester._Requester__connection.session.close()
+        self._gh._Github__requester._Requester__connection.session.close()
