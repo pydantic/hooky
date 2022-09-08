@@ -30,25 +30,30 @@ class RepoConfig(BaseModel):
             if pr_config := redis_client.get(pr_cache_key):
                 return RepoConfig.parse_raw(pr_config)
             elif pr_config := cls._load_raw(repo, ref=pr_base_ref):
-                redis_client.setex(pr_cache_key, 300, pr_config.json())
+                redis_client.setex(pr_cache_key, settings.config_cache_timeout, pr_config.json())
                 return pr_config
             elif repo_config := redis_client.get(repo_cache_key):
                 return RepoConfig.parse_raw(repo_config)
             elif repo_config := cls._load_raw(repo):
-                redis_client.setex(repo_cache_key, 300, repo_config.json())
+                redis_client.setex(repo_cache_key, settings.config_cache_timeout, repo_config.json())
                 return repo_config
             else:
-                return cls()
+                default_config = cls()
+                redis_client.setex(repo_cache_key, settings.config_cache_timeout, default_config.json())
+                return default_config
 
     @classmethod
     def _load_raw(cls, repo: 'GhRepository', *, ref: str | None = None) -> 'RepoConfig | None':
         kwargs = {'ref': ref} if ref else {}
         prefix = f'{repo.full_name}#{ref}' if ref else f'{repo.full_name}#[default]'
         try:
-            f = repo.get_contents('pyproject.toml', **kwargs)
-        except GithubException as exc:
-            log(f'{prefix}, No pyproject.toml found, using defaults: {exc}')
-            return None
+            f = repo.get_contents('.hooky.toml', **kwargs)
+        except GithubException:
+            try:
+                f = repo.get_contents('pyproject.toml', **kwargs)
+            except GithubException as exc:
+                log(f'{prefix}, No ".hooky.toml" or "pyproject.toml" found, using defaults: {exc}')
+                return None
 
         content = base64.b64decode(f.content.encode())
         try:

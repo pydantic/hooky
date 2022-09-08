@@ -63,6 +63,7 @@ def test_please_review(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/issues/comments/123456 > 200',
         'POST /repos/user1/repo1/comments/123456/reactions > 200',
@@ -93,6 +94,7 @@ def test_comment_please_update(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/issues/comments/123456 > 200',
         'POST /repos/user1/repo1/comments/123456/reactions > 200',
@@ -125,6 +127,7 @@ def test_review_please_update(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
     ]
 
@@ -164,6 +167,7 @@ def test_change_file(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/pulls/123/files > 200',
         'GET /repos/user1/repo1/pulls/123/commits > 200',

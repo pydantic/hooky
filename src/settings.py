@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     github_app_secret_key: FilePath = 'github_app_secret_key.pem'
     webhook_secret: SecretBytes
     redis_dsn: RedisDsn = 'redis://localhost:6379'
+    config_cache_timeout: int = 600
 
     @classmethod
     def load_cached(cls, **kwargs) -> 'Settings':

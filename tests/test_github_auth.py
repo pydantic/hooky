@@ -23,6 +23,7 @@ def test_config_cached(webhook, settings: Settings, dummy_server: DummyServer):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
     ]
     assert dummy_server.log == log1

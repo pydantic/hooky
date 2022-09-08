@@ -15,13 +15,13 @@ class FakeFileContent:
 class FakeRepo:
     def __init__(self, content: str | dict[str, str] | None, full_name: str = 'test_org/test_repo'):
         if isinstance(content, str) or content is None:
-            content = {'NotSet': content}
+            content = {'.hooky.toml:NotSet': content}
         self.content = content
         self.__calls__ = []
         self.full_name = full_name
 
     def get_contents(self, path: str, ref: str = 'NotSet') -> FakeFileContent:
-        content = self.content.get(ref)
+        content = self.content.get(f'{path}:{ref}')
         if content is None:
             self.__calls__.append(f'{path}:{ref} -> error')
             raise GithubException(404, 'Not found', {})
@@ -33,7 +33,10 @@ class FakeRepo:
 @pytest.mark.parametrize(
     'content,log_contains',
     [
-        (None, 'test_org/test_repo#[default], No pyproject.toml found, using defaults: 404 "Not found"'),
+        (
+            None,
+            'test_org/test_repo#[default], No ".hooky.toml" or "pyproject.toml" found, using defaults: 404 "Not found"',
+        ),
         ('foobar', 'test_org/test_repo#[default], Invalid pyproject.toml, using defaults'),
         ('x = 4', 'test_org/test_repo#[default], No [tools.hooky] section found, using defaults'),
         (
@@ -88,16 +91,24 @@ class CustomPr:
 
 
 def test_cached_default(settings, flush_redis, capsys):
-    repo = FakeRepo({'main': None, 'NotSet': valid_config})
+    repo = FakeRepo({'pyproject.toml:main': None, 'pyproject.toml:NotSet': valid_config})
     pr = CustomPr(base=FakeBase(repo=repo, ref='main'))
     config = RepoConfig.load(pr, settings)
     assert config.reviewers == ['foobar', 'barfoo']
-    assert repo.__calls__ == ['pyproject.toml:main -> error', 'pyproject.toml:NotSet -> success']
+    assert repo.__calls__ == [
+        '.hooky.toml:main -> error',
+        'pyproject.toml:main -> error',
+        '.hooky.toml:NotSet -> error',
+        'pyproject.toml:NotSet -> success',
+    ]
     config = RepoConfig.load(pr, settings)
     assert config.reviewers == ['foobar', 'barfoo']
     assert repo.__calls__ == [
+        '.hooky.toml:main -> error',
         'pyproject.toml:main -> error',
+        '.hooky.toml:NotSet -> error',
         'pyproject.toml:NotSet -> success',
+        '.hooky.toml:main -> error',
         'pyproject.toml:main -> error',
     ]
     out, err = capsys.readouterr()
