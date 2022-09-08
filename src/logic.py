@@ -5,7 +5,7 @@ from typing import Literal
 from github import PullRequest as GhPullRequest
 from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import get_repo_client
+from .github_auth import close_github_session, get_repo_client
 from .settings import Settings, log
 
 __all__ = ('process_event',)
@@ -98,10 +98,9 @@ def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
             force_assign_author=event.review.state == 'changes_requested',
             settings=settings,
         )
-    elif isinstance(event, PullRequestUpdateEvent):
-        return check_change_file(event, settings)
     else:
-        return False, 'unknown event type'
+        assert isinstance(event, PullRequestUpdateEvent), 'unknown event type'
+        return check_change_file(event, settings)
 
 
 def label_assign(
@@ -114,25 +113,28 @@ def label_assign(
     settings: Settings,
 ) -> tuple[bool, str]:
     if comment.body is None:
-        return False, 'review has no body'
+        return False, '[Label and assign] review has no body'
     body = comment.body.lower()
 
-    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(pr.number)
+    gh = get_repo_client(event.repository.full_name, settings)
+    try:
+        gh_pr = gh.get_pull(pr.number)
 
-    log(f'{comment.user.login} ({event_type}): {body!r}')
+        log(f'{comment.user.login} ({event_type}): {body!r}')
 
-    label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
-    if settings.request_review_trigger in body:
-        action_taken, msg = label_assign_.request_review()
-    elif settings.request_update_trigger in body or force_assign_author:
-        action_taken, msg = label_assign_.assign_author()
-    else:
-        action_taken = False
-        msg = (
-            f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
-            f'found in comment body'
-        )
-
+        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
+        if settings.request_review_trigger in body:
+            action_taken, msg = label_assign_.request_review()
+        elif settings.request_update_trigger in body or force_assign_author:
+            action_taken, msg = label_assign_.assign_author()
+        else:
+            action_taken = False
+            msg = (
+                f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
+                f'found in comment body'
+            )
+    finally:
+        close_github_session(gh)
     return action_taken, f'[Label and assign] {msg}'
 
 
@@ -208,6 +210,7 @@ closed_issue_template = (
     r'(#|https://github.com/[^/]+/[^/]+/issues/){}'
 )
 required_actions = {'opened', 'edited', 'reopened', 'synchronize'}
+CommitStatus = Literal['error', 'failure', 'pending', 'success']
 
 
 def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tuple[bool, str]:
@@ -220,37 +223,41 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
-    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(event.pull_request.number)
+    gh = get_repo_client(event.repository.full_name, settings)
+    try:
+        gh_pr = gh.get_pull(event.pull_request.number)
 
-    body = event.pull_request.body.lower() if event.pull_request.body else ''
-    if settings.no_change_file in body:
-        return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
+        body = event.pull_request.body.lower() if event.pull_request.body else ''
+        if settings.no_change_file in body:
+            return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
+        elif file_match := find_change_file(gh_pr):
+            return set_status(gh_pr, *check_change_file_content(file_match, body, event.pull_request))
+        else:
+            return set_status(gh_pr, 'error', 'No change file found')
+    finally:
+        close_github_session(gh)
 
-    file_match = find_file(gh_pr)
-    if file_match is None:
-        return set_status(gh_pr, 'error', 'No change file found')
 
+def check_change_file_content(file_match: re.Match, body: str, pr: PullRequest) -> tuple[CommitStatus, str]:
     file_id, file_author = file_match.groups()
-    pr_author = event.pull_request.user.login
+    pr_author = pr.user.login
     if file_author.lower() != pr_author.lower():
-        return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
-    elif int(file_id) == event.pull_request.number:
-        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches the Pull Request')
+        return 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"'
+    elif int(file_id) == pr.number:
+        return 'success', f'Change file ID #{file_id} matches the Pull Request'
     elif re.search(closed_issue_template.format(file_id), body):
-        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request')
+        return 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request'
     else:
-        return set_status(gh_pr, 'error', 'Change file ID does not match Pull Request or closed Issue')
+        return 'error', 'Change file ID does not match Pull Request or closed Issue'
 
 
-def find_file(gh_pr: GhPullRequest) -> re.Match | None:
+def find_change_file(gh_pr: GhPullRequest) -> re.Match | None:
     for changed_file in gh_pr.get_files():
         if changed_file.status == 'added' and (match := re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename)):
             return match
 
 
-def set_status(
-    gh_pr: GhPullRequest, state: Literal['error', 'failure', 'pending', 'success'], description: str
-) -> tuple[bool, str]:
+def set_status(gh_pr: GhPullRequest, state: CommitStatus, description: str) -> tuple[bool, str]:
     *_, last_commit = gh_pr.get_commits()
     last_commit.create_status(
         state,

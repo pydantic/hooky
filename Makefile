@@ -27,6 +27,7 @@ test:
 
 .PHONY: testcov
 testcov: test
+	@coverage report
 	@echo "building coverage html"
 	@coverage html
 
