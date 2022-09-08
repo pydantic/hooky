@@ -5,7 +5,7 @@ from typing import Literal
 from github import PullRequest as GhPullRequest
 from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import get_repo_client
+from .github_auth import close_github_session, get_repo_client
 from .settings import Settings, log
 
 __all__ = ('process_event',)
@@ -118,21 +118,24 @@ def label_assign(
     body = comment.body.lower()
 
     gh = get_repo_client(event.repository.full_name, settings)
-    gh_pr = gh.get_pull(pr.number)
+    try:
+        gh_pr = gh.get_pull(pr.number)
 
-    log(f'{comment.user.login} ({event_type}): {body!r}')
+        log(f'{comment.user.login} ({event_type}): {body!r}')
 
-    label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
-    if settings.request_review_trigger in body:
-        action_taken, msg = label_assign_.request_review()
-    elif settings.request_update_trigger in body or force_assign_author:
-        action_taken, msg = label_assign_.assign_author()
-    else:
-        action_taken = False
-        msg = (
-            f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
-            f'found in comment body'
-        )
+        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, settings)
+        if settings.request_review_trigger in body:
+            action_taken, msg = label_assign_.request_review()
+        elif settings.request_update_trigger in body or force_assign_author:
+            action_taken, msg = label_assign_.assign_author()
+        else:
+            action_taken = False
+            msg = (
+                f'neither {settings.request_update_trigger!r} nor {settings.request_review_trigger!r} '
+                f'found in comment body'
+            )
+    finally:
+        close_github_session(gh)
     return action_taken, f'[Label and assign] {msg}'
 
 
@@ -220,29 +223,33 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
 
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
 
-    gh_pr = get_repo_client(event.repository.full_name, settings).get_pull(event.pull_request.number)
+    gh = get_repo_client(event.repository.full_name, settings)
+    try:
+        gh_pr = gh.get_pull(event.pull_request.number)
 
-    body = event.pull_request.body.lower() if event.pull_request.body else ''
-    if settings.no_change_file in body:
-        return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
+        body = event.pull_request.body.lower() if event.pull_request.body else ''
+        if settings.no_change_file in body:
+            return set_status(gh_pr, 'success', f'Found "{settings.no_change_file}" in Pull Request body')
 
-    file_match = find_file(gh_pr)
-    if file_match is None:
-        return set_status(gh_pr, 'error', 'No change file found')
+        file_match = find_change_file(gh_pr)
+        if file_match is None:
+            return set_status(gh_pr, 'error', 'No change file found')
 
-    file_id, file_author = file_match.groups()
-    pr_author = event.pull_request.user.login
-    if file_author.lower() != pr_author.lower():
-        return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
-    elif int(file_id) == event.pull_request.number:
-        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches the Pull Request')
-    elif re.search(closed_issue_template.format(file_id), body):
-        return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request')
-    else:
-        return set_status(gh_pr, 'error', 'Change file ID does not match Pull Request or closed Issue')
+        file_id, file_author = file_match.groups()
+        pr_author = event.pull_request.user.login
+        if file_author.lower() != pr_author.lower():
+            return set_status(gh_pr, 'error', f'File "{file_match.group()}" has wrong author, expected "{pr_author}"')
+        elif int(file_id) == event.pull_request.number:
+            return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches the Pull Request')
+        elif re.search(closed_issue_template.format(file_id), body):
+            return set_status(gh_pr, 'success', f'Change file ID #{file_id} matches Issue closed by the Pull Request')
+        else:
+            return set_status(gh_pr, 'error', 'Change file ID does not match Pull Request or closed Issue')
+    finally:
+        close_github_session(gh)
 
 
-def find_file(gh_pr: GhPullRequest) -> re.Match | None:
+def find_change_file(gh_pr: GhPullRequest) -> re.Match | None:
     for changed_file in gh_pr.get_files():
         if changed_file.status == 'added' and (match := re.fullmatch(r'changes/(\d+)-(.+).md', changed_file.filename)):
             return match

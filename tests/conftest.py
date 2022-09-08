@@ -1,6 +1,10 @@
 import asyncio
+import hashlib
+import hmac
+import json
 
 import pytest
+import redis
 from foxglove.test_server import create_dummy_server
 from foxglove.testing import TestClient
 
@@ -36,6 +40,12 @@ def fix_loop(settings):
     return loop
 
 
+@pytest.fixture(name='flush_redis')
+def fix_flush_redis(settings):
+    with redis.from_url(settings.redis_dsn) as redis_client:
+        redis_client.flushdb()
+
+
 @pytest.fixture(name='client')
 def fix_client(settings: Settings, loop):
     from src import app
@@ -45,7 +55,7 @@ def fix_client(settings: Settings, loop):
 
 
 @pytest.fixture(name='dummy_server')
-def _fix_dummy_server(loop):
+def _fix_dummy_server(loop, flush_redis):
     from src import github_auth
 
     loop = asyncio.get_event_loop()
@@ -57,3 +67,13 @@ def _fix_dummy_server(loop):
     yield ds
 
     loop.run_until_complete(ds.stop())
+
+
+@pytest.fixture(name='webhook')
+def fix_webhook(settings: Settings, client: Client):
+    def post_webhook(data):
+        request_body = json.dumps(data).encode()
+        digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
+        return client.post('/', data=request_body, headers={'x-hub-signature-256': f'sha256={digest}'})
+
+    return post_webhook
