@@ -1,3 +1,5 @@
+import base64
+
 from aiohttp import web
 from aiohttp.abc import Request
 from aiohttp.web_response import Response, json_response
@@ -7,7 +9,7 @@ async def repo_details(request: Request) -> Response:
     github_base_url = request.app['dynamic']['github_base_url']
     org = request.match_info['org']
     repo = request.match_info['repo']
-    return json_response({'url': f'{github_base_url}/repos/{org}/{repo}'})
+    return json_response({'url': f'{github_base_url}/repos/{org}/{repo}', 'full_name': f'{org}/{repo}'})
 
 
 async def pull_details(request: Request) -> Response:
@@ -19,6 +21,12 @@ async def pull_details(request: Request) -> Response:
         {
             'url': f'{github_base_url}/repos/{org}/{repo}/pulls/{pull_number}',
             'issue_url': f'{github_base_url}/repos/{org}/{repo}/issues/{pull_number}',
+            'base': {
+                'label': 'foobar:main',
+                'ref': 'main',
+                'sha': 'abc1234',
+                'repo': {'url': f'{github_base_url}/repos/{org}/{repo}', 'full_name': f'{org}/{repo}'},
+            },
         }
     )
 
@@ -79,6 +87,16 @@ async def remove_assignee(_request: Request) -> Response:
     return json_response({'assignees': []})
 
 
+pyproject_toml = b"""
+[tool.hooky]
+reviewers = ['user1', 'user2']
+"""
+
+
+async def py_project_content(_request: Request) -> Response:
+    return json_response({'content': base64.b64encode(pyproject_toml).decode(), 'encoding': 'base64', 'type': 'file'})
+
+
 async def repo_apps_installed(request: Request) -> Response:
     assert request.headers['Accept'] == 'application/vnd.github+json'
     return json_response({'id': '654321'})
@@ -106,6 +124,7 @@ routes = [
     web.post('/repos/{org}/{repo}/issues/{issue_id}/labels', add_labels),
     web.post('/repos/{org}/{repo}/issues/{issue_id}/assignees', add_assignee),
     web.delete('/repos/{org}/{repo}/issues/{issue_id}/assignees', remove_assignee),
+    web.get('/repos/{org}/{repo}/contents/pyproject.toml', py_project_content),
     web.get('/repos/{org}/{repo}/installation', repo_apps_installed),
     web.post('/app/installations/{installation}/access_tokens', installation_access_token),
     web.route('*', '/{path:.*}', catch_all),

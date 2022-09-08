@@ -43,41 +43,33 @@ def test_issue(webhook):
 
 
 def test_please_review(dummy_server: DummyServer, webhook):
-    data = {
-        'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
-        'issue': {
-            'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},
-            'user': {'login': 'user1'},
-            'number': 123,
-        },
-        'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
-    }
-    r = webhook(data)
+    r = webhook(
+        {
+            'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
+            'issue': {
+                'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},
+                'user': {'login': 'user1'},
+                'number': 123,
+            },
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
     assert r.status_code == 200, r.text
     assert r.text == (
         '[Label and assign] Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
     )
-    log1 = [
+    assert dummy_server.log == [
         'GET /repos/user1/repo1/installation > 200',
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/issues/comments/123456 > 200',
         'POST /repos/user1/repo1/comments/123456/reactions > 200',
         'POST /repos/user1/repo1/issues/123/labels > 200',
         'GET /repos/user1/repo1/issues/123/labels > 200',
         'POST /repos/user1/repo1/issues/123/assignees > 200',
     ]
-    assert dummy_server.log == log1
-
-    # do it again, installation is cached
-    r = webhook(data)
-    assert r.status_code == 200, r.text
-    assert r.text == (
-        '[Label and assign] Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
-    )
-    # this time no extra `.../installation` and `.access_tokens`
-    assert dummy_server.log == log1 + log1[2:]
 
 
 def test_comment_please_update(dummy_server: DummyServer, webhook):
@@ -101,6 +93,7 @@ def test_comment_please_update(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/issues/comments/123456 > 200',
         'POST /repos/user1/repo1/comments/123456/reactions > 200',
         'POST /repos/user1/repo1/issues/123/labels > 200',
@@ -132,6 +125,7 @@ def test_review_please_update(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
     ]
 
 
@@ -170,6 +164,7 @@ def test_change_file(dummy_server: DummyServer, webhook):
         'POST /app/installations/654321/access_tokens > 200',
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/pulls/123 > 200',
+        'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
         'GET /repos/user1/repo1/pulls/123/files > 200',
         'GET /repos/user1/repo1/pulls/123/commits > 200',
         'POST /repos/user1/repo1/statuses/abc > 200',
