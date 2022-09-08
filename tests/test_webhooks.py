@@ -80,7 +80,7 @@ def test_please_review(dummy_server: DummyServer, webhook):
     assert dummy_server.log == log1 + log1[2:]
 
 
-def test_please_update(dummy_server: DummyServer, webhook):
+def test_comment_please_update(dummy_server: DummyServer, webhook):
     r = webhook(
         {
             'comment': {'body': 'Hello world, please update', 'user': {'login': 'user1'}, 'id': 123456},
@@ -108,6 +108,49 @@ def test_please_update(dummy_server: DummyServer, webhook):
         'POST /repos/user1/repo1/issues/123/assignees > 200',
         'DELETE /repos/user1/repo1/issues/123/assignees > 200',
     ]
+
+
+def test_review_please_update(dummy_server: DummyServer, webhook):
+    r = webhook(
+        {
+            'review': {'body': 'Hello world', 'user': {'login': 'user1'}, 'state': 'comment'},
+            'pull_request': {
+                'number': 123,
+                'user': {'login': 'user1'},
+                'state': 'open',
+                'pull_request': 'this is the body',
+            },
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
+    assert r.status_code == 202, r.text
+    assert r.text == (
+        "[Label and assign] neither 'please update' nor 'please review' found in comment body, no action taken"
+    )
+    assert dummy_server.log == [
+        'GET /repos/user1/repo1/installation > 200',
+        'POST /app/installations/654321/access_tokens > 200',
+        'GET /repos/user1/repo1 > 200',
+        'GET /repos/user1/repo1/pulls/123 > 200',
+    ]
+
+
+def test_review_no_body(dummy_server: DummyServer, webhook):
+    r = webhook(
+        {
+            'review': {'body': None, 'user': {'login': 'user1'}, 'state': 'comment'},
+            'pull_request': {
+                'number': 123,
+                'user': {'login': 'user1'},
+                'state': 'open',
+                'pull_request': 'this is the body',
+            },
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
+    assert r.status_code == 202, r.text
+    assert r.text == '[Label and assign] review has no body, no action taken'
+    assert dummy_server.log == []
 
 
 def test_change_file(dummy_server: DummyServer, webhook):

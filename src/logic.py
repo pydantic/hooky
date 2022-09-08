@@ -98,10 +98,9 @@ def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
             force_assign_author=event.review.state == 'changes_requested',
             settings=settings,
         )
-    elif isinstance(event, PullRequestUpdateEvent):
-        return check_change_file(event, settings)
     else:
-        return False, 'unknown event type'
+        assert isinstance(event, PullRequestUpdateEvent), 'unknown event type'
+        return check_change_file(event, settings)
 
 
 def label_assign(
@@ -114,7 +113,7 @@ def label_assign(
     settings: Settings,
 ) -> tuple[bool, str]:
     if comment.body is None:
-        return False, 'review has no body'
+        return False, '[Label and assign] review has no body'
     body = comment.body.lower()
 
     gh = get_repo_client(event.repository.full_name, settings)
