@@ -4,9 +4,7 @@ paths = src tests
 .PHONY: install
 install:
 	pip install -U pip pre-commit
-	pip install -r requirements.txt
-	pip install -r requirements/testing.txt
-	pip install -r requirements/linting.txt
+	pip install -r requirements/all.txt
 	pre-commit install
 
 .PHONY: format
