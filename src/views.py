@@ -49,14 +49,12 @@ async def webhook(request: Request, x_hub_signature_256: str = Header(default=''
 
 @app.post('/marketplace/')
 async def marketplace_webhook(request: Request, x_hub_signature_256: str = Header(default='')):
+    # this endpoint doesn't actually do anything, it's here in case we want to use it in future
     request_body = await request.body()
-
-    body = json.loads(request_body)
-    log(f'Marketplace webhook: { json.dumps(body, indent=2)}')
 
     secret = settings.marketplace_webhook_secret
     if secret is None:
-        raise HTTPException(status_code=403, detail='Marketplace secret not configured')
+        raise HTTPException(status_code=403, detail='Marketplace secret not set')
 
     digest = hmac.new(secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
 
@@ -64,4 +62,6 @@ async def marketplace_webhook(request: Request, x_hub_signature_256: str = Heade
         log(f'Invalid marketplace signature: {digest=} {x_hub_signature_256=}')
         raise HTTPException(status_code=403, detail='Invalid marketplace signature')
 
+    body = json.loads(request_body)
+    log(f'Marketplace webhook: { json.dumps(body, indent=2)}')
     return PlainTextResponse('ok', status_code=202)
