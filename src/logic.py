@@ -159,11 +159,11 @@ class LabelAssign:
             self.reviewers = config.reviewers
         else:
             self.reviewers = [r.login for r in gh_repo.get_collaborators()]
-        self.commenter_is_reviewer = self.commenter in config.reviewers
+        self.commenter_is_reviewer = self.commenter in self.reviewers
 
     def assign_author(self) -> tuple[bool, str]:
         if not self.commenter_is_reviewer:
-            return False, f'Only reviewers {self.show_reviewers()} can assign the author, not {self.commenter}'
+            return False, f'Only reviewers {self.show_reviewers()} can assign the author, not "{self.commenter}"'
 
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_update_label)
@@ -180,7 +180,7 @@ class LabelAssign:
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
         if not (self.commenter_is_reviewer or commenter_is_author):
-            return False, f'Only the PR author {self.author} or reviewers can request a review, not {self.commenter}'
+            return False, f'Only the PR author {self.author} or reviewers can request a review, not "{self.commenter}"'
 
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)

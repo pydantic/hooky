@@ -23,7 +23,7 @@ from .blocks import AttrBlock, CallableBlock, IterBlock
 
 @pytest.fixture(name='gh_repo')
 def fix_gh_repo():
-    return AttrBlock('GhRepo', get_collaborators=CallableBlock('get_collaborators', IterBlock('collaborator')))
+    return AttrBlock('GhRepo', get_collaborators=CallableBlock('get_collaborators', IterBlock('collaborators')))
 
 
 @pytest.fixture(name='gh_pr')
@@ -146,7 +146,7 @@ def test_request_review_not_author(settings, gh_pr, gh_repo):
     )
     acted, msg = la.request_review()
     assert not acted
-    assert msg == 'Only the PR author the_auth or reviewers can request a review, not commenter'
+    assert msg == 'Only the PR author the_auth or reviewers can request a review, not "commenter"'
 
 
 def test_assign_author_not_reviewer(settings, gh_pr, gh_repo):
@@ -159,7 +159,7 @@ def test_assign_author_not_reviewer(settings, gh_pr, gh_repo):
         RepoConfig(reviewers=['user1', 'user2']),
         settings,
     )
-    assert la.assign_author() == (False, 'Only reviewers "user1", "user2" can assign the author, not other')
+    assert la.assign_author() == (False, 'Only reviewers "user1", "user2" can assign the author, not "other"')
     assert gh_pr.__history__ == {}
 
 
@@ -173,10 +173,10 @@ def test_assign_author_no_reviewers(settings, gh_pr, gh_repo):
         RepoConfig(),
         settings,
     )
-    assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not other')
+    assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not "other"')
     assert gh_repo.__history__ == {
-        'get_collaborators': "Call() -> IterBlock('collaborator')",
-        'get_collaborators.collaborator': 'Iter()',
+        'get_collaborators': "Call() -> IterBlock('collaborators')",
+        'get_collaborators.collaborators': 'Iter()',
     }
     assert gh_pr.__history__ == {}
 
@@ -187,7 +187,7 @@ def test_get_collaborators(settings, gh_pr):
         get_collaborators=CallableBlock(
             'get_collaborators',
             IterBlock(
-                'collaborator', AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2')
+                'collaborators', AttrBlock('Collaborator', login='colab1'), AttrBlock('Collaborator', login='colab2')
             ),
         ),
     )
@@ -195,22 +195,32 @@ def test_get_collaborators(settings, gh_pr):
         gh_pr,
         gh_repo,
         'comment',
-        Comment(body='x', user=User(login='other'), id=123456),
+        Comment(body='x', user=User(login='colab2'), id=123456),
         'user1',
         RepoConfig(),
         settings,
     )
-    assert la.assign_author() == (False, 'Only reviewers "colab1", "colab2" can assign the author, not other')
+    act, msg = la.assign_author()
+    assert act, msg
+    assert msg == 'Author user1 successfully assigned to PR, "awaiting author revision" label added'
     assert gh_repo.__history__ == {
         'get_collaborators': (
-            "Call() -> IterBlock('collaborator', "
-            "AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+            "Call() -> IterBlock('collaborators', AttrBlock('Collaborator', login='colab1'), "
+            "AttrBlock('Collaborator', login='colab2'))"
         ),
-        'get_collaborators.collaborator': (
-            "Iter(AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+        'get_collaborators.collaborators': (
+            "Iter(AttrBlock('Collaborator', login='colab1'), AttrBlock('Collaborator', login='colab2'))"
         ),
     }
-    assert gh_pr.__history__ == {}
+    assert gh_pr.__history__ == {
+        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        'get_issue_comment.create_reaction': "Call('+1')",
+        'add_to_labels': "Call('awaiting author revision')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+        'remove_from_labels': "Call('ready for review')",
+        'add_to_assignees': "Call('user1')",
+        'remove_from_assignees': "Call('colab1', 'colab2')",
+    }
 
 
 def test_change_not_open(settings):
@@ -274,12 +284,11 @@ def test_change_no_change_comment(settings, mocker):
     )
     gh = build_gh()
     mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
-    assert check_change_file(e, settings) == (
-        True,
-        (
-            '[Check change file] status set to "success" with description '
-            '"Found "skip change file check" in Pull Request body"'
-        ),
+    act, msg = check_change_file(e, settings)
+    assert act, msg
+    assert msg == (
+        '[Check change file] status set to "success" with description '
+        '"Found "skip change file check" in Pull Request body"'
     )
 
 
