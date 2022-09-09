@@ -4,7 +4,6 @@
 [![Coverage](https://codecov.io/gh/pydantic/hooky/branch/main/graph/badge.svg)](https://codecov.io/gh/pydantic/hooky)
 [![license](https://img.shields.io/github/license/pydantic/hooky.svg)](https://github.com/pydantic/hooky/blob/main/LICENSE)
 
-
 Receive and respond to GitHub webhooks, built for use with [pydantic](https://github.com/pydantic/pydantic).
 
 ## Label and Assign
@@ -20,8 +19,7 @@ This tool responds to magic phrases in pull request comments:
 
 This tool checks pull requests to enforce a "change file" has been added.
 
-See [here](https://github.com/pydantic/pydantic/tree/master/changes#pending-changes) for details on the format
-expected.
+See [here](https://github.com/pydantic/pydantic/tree/master/changes#pending-changes) for details on the format expected.
 
 To skip this check the magic phrase **"skip change file check"** can be added to the pull request body.
 

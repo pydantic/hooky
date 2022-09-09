@@ -17,4 +17,5 @@ def test_index(client: Client, method):
 def test_favicon(client: Client, method):
     r = client.request(method, '/favicon.ico')
     assert r.status_code == 200, r.text
-    assert r.headers['content-type'] == 'image/vnd.microsoft.icon'
+    # different on linux ('image/vnd.microsoft.icon') and macos ('image/x-icon')
+    assert r.headers['content-type'] in {'image/vnd.microsoft.icon', 'image/x-icon'}
