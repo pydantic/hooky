@@ -153,5 +153,5 @@ class IterBlock(Block):
         return iter(items)
 
     def __repr__(self):
-        items_repr = ', '.join(repr(i) for i in self._items)
-        return f'{self.__class__.__name__}({self._name!r}, {items_repr})'
+        args = (self._name,) + self._items
+        return f'{self.__class__.__name__}({", ".join(repr(a) for a in args)})'

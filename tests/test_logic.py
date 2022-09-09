@@ -174,6 +174,42 @@ def test_assign_author_no_reviewers(settings, gh_pr, gh_repo):
         settings,
     )
     assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not other')
+    assert gh_repo.__history__ == {
+        'get_collaborators': "Call() -> IterBlock('collaborator')",
+        'get_collaborators.collaborator': 'Iter()',
+    }
+    assert gh_pr.__history__ == {}
+
+
+def test_get_collaborators(settings, gh_pr):
+    gh_repo = AttrBlock(
+        'GhRepo',
+        get_collaborators=CallableBlock(
+            'get_collaborators',
+            IterBlock(
+                'collaborator', AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2')
+            ),
+        ),
+    )
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'user1',
+        RepoConfig(),
+        settings,
+    )
+    assert la.assign_author() == (False, 'Only reviewers "colab1", "colab2" can assign the author, not other')
+    assert gh_repo.__history__ == {
+        'get_collaborators': (
+            "Call() -> IterBlock('collaborator', "
+            "AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+        ),
+        'get_collaborators.collaborator': (
+            "Iter(AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+        ),
+    }
     assert gh_pr.__history__ == {}
 
 
