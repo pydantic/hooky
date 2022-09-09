@@ -37,11 +37,11 @@ class FakeRepo:
             None,
             'test_org/test_repo#[default], No ".hooky.toml" or "pyproject.toml" found, using defaults: 404 "Not found"',
         ),
-        ('foobar', 'test_org/test_repo#[default], Invalid pyproject.toml, using defaults'),
-        ('x = 4', 'test_org/test_repo#[default], No [tools.hooky] section found, using defaults'),
+        ('foobar', 'test_org/test_repo#[default]/.hooky.toml, Invalid config file, using defaults'),
+        ('x = 4', 'test_org/test_repo#[default]/.hooky.toml, No [tools.hooky] section found, using defaults'),
         (
             '[tool.hooky]\nreviewers="foobar"',
-            'test_org/test_repo#[default], Error validating hooky config, using defaults',
+            'test_org/test_repo#[default]/.hooky.toml, Error validating hooky config, using defaults',
         ),
     ],
 )
@@ -112,4 +112,7 @@ def test_cached_default(settings, flush_redis, capsys):
         'pyproject.toml:main -> error',
     ]
     out, err = capsys.readouterr()
-    assert "test_org/test_repo#[default], config: reviewers=['foobar', 'barfoo'] request_update_trigger='eggs'" in out
+    assert (
+        'test_org/test_repo#[default]/pyproject.toml, '
+        "config: reviewers=['foobar', 'barfoo'] request_update_trigger='eggs'"
+    ) in out
