@@ -23,9 +23,11 @@ from .conftest import Magic
 
 
 def test_assign_author(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'user1',
@@ -46,9 +48,11 @@ def test_assign_author(settings):
 
 
 def test_assign_author_remove_label(settings):
+    gh_repo = Magic()
     gh_pr = Magic(get_labels=Magic(__iter__=[Magic(name='ready for review')]))
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'user1',
@@ -71,9 +75,11 @@ def test_assign_author_remove_label(settings):
 
 
 def test_request_review(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'other',
@@ -93,9 +99,11 @@ def test_request_review(settings):
 
 
 def test_request_review_from_review(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'review',
         Comment(body='x', user=User(login='other'), id=123456),
         'other',
@@ -114,9 +122,16 @@ def test_request_review_from_review(settings):
 
 
 def test_request_review_not_author(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
-        gh_pr, 'comment', Comment(body='x', user=User(login='commenter'), id=123456), 'the_auth', RepoConfig(), settings
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='commenter'), id=123456),
+        'the_auth',
+        RepoConfig(),
+        settings,
     )
     acted, msg = la.request_review()
     assert not acted
@@ -124,9 +139,11 @@ def test_request_review_not_author(settings):
 
 
 def test_assign_author_not_reviewer(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='other'), id=123456),
         'user1',
@@ -138,9 +155,16 @@ def test_assign_author_not_reviewer(settings):
 
 
 def test_assign_author_no_reviewers(settings):
+    gh_repo = Magic()
     gh_pr = Magic()
     la = LabelAssign(
-        gh_pr, 'comment', Comment(body='x', user=User(login='other'), id=123456), 'user1', RepoConfig(), settings
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'user1',
+        RepoConfig(),
+        settings,
     )
     assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not other')
     assert gh_pr.__history__ == {}

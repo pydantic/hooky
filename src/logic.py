@@ -2,7 +2,7 @@ import re
 from textwrap import indent
 from typing import Literal
 
-from github import PullRequest as GhPullRequest
+from github import PullRequest as GhPullRequest, Repository as GhRepository
 from pydantic import BaseModel, parse_raw_as
 
 from .github_auth import get_repo_client
@@ -123,7 +123,7 @@ def label_assign(
 
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
-        label_assign_ = LabelAssign(gh_pr, event_type, comment, pr.user.login, config, settings)
+        label_assign_ = LabelAssign(gh_pr, gh_repo, event_type, comment, pr.user.login, config, settings)
         if config.request_review_trigger in body:
             action_taken, msg = label_assign_.request_review()
         elif config.request_update_trigger in body or force_assign_author:
@@ -141,6 +141,7 @@ class LabelAssign:
     def __init__(
         self,
         gh_pr: GhPullRequest,
+        gh_repo: GhRepository,
         event_type: Literal['comment', 'review'],
         comment: Comment,
         author: str,
@@ -154,6 +155,10 @@ class LabelAssign:
         self.author = author
         self.config = config
         self.settings = settings
+        if config.reviewers:
+            self.reviewers = config.reviewers
+        else:
+            self.reviewers = [r.login for r in gh_repo.get_collaborators()]
         self.commenter_is_reviewer = self.commenter in config.reviewers
 
     def assign_author(self) -> tuple[bool, str]:
@@ -164,7 +169,7 @@ class LabelAssign:
         self.gh_pr.add_to_labels(self.config.awaiting_update_label)
         self.remove_label(self.config.awaiting_review_label)
         self.gh_pr.add_to_assignees(self.author)
-        to_remove = [r for r in self.config.reviewers if r != self.author]
+        to_remove = [r for r in self.reviewers if r != self.author]
         if to_remove:
             self.gh_pr.remove_from_assignees(*to_remove)
         return (
@@ -180,8 +185,8 @@ class LabelAssign:
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)
         self.remove_label(self.config.awaiting_update_label)
-        self.gh_pr.add_to_assignees(*self.config.reviewers)
-        if self.author not in self.config.reviewers:
+        self.gh_pr.add_to_assignees(*self.reviewers)
+        if self.author not in self.reviewers:
             self.gh_pr.remove_from_assignees(self.author)
         return (
             True,
@@ -203,8 +208,8 @@ class LabelAssign:
             self.gh_pr.remove_from_labels(label)
 
     def show_reviewers(self):
-        if self.config.reviewers:
-            return ', '.join(f'"{r}"' for r in self.config.reviewers)
+        if self.reviewers:
+            return ', '.join(f'"{r}"' for r in self.reviewers)
         else:
             return '(no reviewers configured)'
 
