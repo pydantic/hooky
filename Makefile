@@ -5,8 +5,8 @@ paths = src tests
 install:
 	pip install -U pip pre-commit
 	pip install -r requirements.txt
-	pip install -r tests/requirements.txt
-	pip install -r tests/requirements-linting.txt
+	pip install -r requirements/testing.txt
+	pip install -r requirements/linting.txt
 	pre-commit install
 
 .PHONY: format
