@@ -87,14 +87,25 @@ async def remove_assignee(_request: Request) -> Response:
     return json_response({'assignees': []})
 
 
-pyproject_toml = b"""
+config_with_reviewers = b"""
 [tool.hooky]
 reviewers = ['user1', 'user2']
 """
 
 
-async def py_project_content(_request: Request) -> Response:
-    return json_response({'content': base64.b64encode(pyproject_toml).decode(), 'encoding': 'base64', 'type': 'file'})
+async def py_project_content(request: Request) -> Response:
+    repo = request.match_info['repo']
+    if repo == 'no_reviewers':
+        return json_response({}, status=404)
+    else:
+        return json_response(
+            {'content': base64.b64encode(config_with_reviewers).decode(), 'encoding': 'base64', 'type': 'file'}
+        )
+
+
+async def get_collaborators(request: Request) -> Response:
+    org = request.match_info['org']
+    return json_response([{'login': org, 'type': 'User'}, {'login': 'an_other', 'type': 'User'}])
 
 
 async def repo_apps_installed(request: Request) -> Response:
@@ -125,6 +136,7 @@ routes = [
     web.post('/repos/{org}/{repo}/issues/{issue_id}/assignees', add_assignee),
     web.delete('/repos/{org}/{repo}/issues/{issue_id}/assignees', remove_assignee),
     web.get('/repos/{org}/{repo}/contents/pyproject.toml', py_project_content),
+    web.get('/repos/{org}/{repo}/collaborators', get_collaborators),
     web.get('/repos/{org}/{repo}/installation', repo_apps_installed),
     web.post('/app/installations/{installation}/access_tokens', installation_access_token),
     web.route('*', '/{path:.*}', catch_all),

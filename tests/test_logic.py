@@ -1,7 +1,6 @@
 import base64
 import re
 from dataclasses import dataclass
-from unittest.mock import MagicMock
 
 import pytest
 from github import GithubException
@@ -19,13 +18,33 @@ from src.logic import (
 )
 from src.repo_config import RepoConfig
 
-from .conftest import Magic
+from .blocks import AttrBlock, CallableBlock, IterBlock
 
 
-def test_assign_author(settings):
-    gh_pr = Magic()
+@pytest.fixture(name='gh_repo')
+def fix_gh_repo():
+    return AttrBlock('GhRepo', get_collaborators=CallableBlock('get_collaborators', IterBlock('collaborator')))
+
+
+@pytest.fixture(name='gh_pr')
+def fix_gh_pr():
+    return AttrBlock(
+        'GhPr',
+        get_issue_comment=CallableBlock(
+            'get_issue_comment', AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))
+        ),
+        add_to_labels=CallableBlock('add_to_labels'),
+        get_labels=CallableBlock('get_labels', IterBlock('get_labels', AttrBlock('labels', name='ready for review'))),
+        remove_from_labels=CallableBlock('remove_from_labels'),
+        add_to_assignees=CallableBlock('add_to_assignees'),
+        remove_from_assignees=CallableBlock('remove_from_assignees'),
+    )
+
+
+def test_assign_author(settings, gh_pr, gh_repo):
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'user1',
@@ -37,18 +56,20 @@ def test_assign_author(settings):
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
     )
     assert gh_pr.__history__ == {
-        'get_issue_comment': {'args': (123456,), 'return': {'create_reaction': {'args': ('+1',)}}},
-        'add_to_labels': {'args': ('awaiting author revision',)},
-        'get_labels': {'return': {'__iter__': {'return': []}}},
-        'add_to_assignees': {'args': ('user1',)},
-        'remove_from_assignees': {'args': ('user2',)},
+        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        'get_issue_comment.create_reaction': "Call('+1')",
+        'add_to_labels': "Call('awaiting author revision')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+        'remove_from_labels': "Call('ready for review')",
+        'add_to_assignees': "Call('user1')",
+        'remove_from_assignees': "Call('user2')",
     }
 
 
-def test_assign_author_remove_label(settings):
-    gh_pr = Magic(get_labels=Magic(__iter__=[Magic(name='ready for review')]))
+def test_assign_author_remove_label(settings, gh_pr, gh_repo):
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'user1',
@@ -60,20 +81,19 @@ def test_assign_author_remove_label(settings):
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
     )
     assert gh_pr.__history__ == {
-        'get_issue_comment': {'args': (123456,), 'return': {'create_reaction': {'args': ('+1',)}}},
-        'add_to_labels': {'args': ('awaiting author revision',)},
-        'get_labels': {
-            'return': {'__call__': {'return': {'__iter__': {'return': [{'name': {'return': 'ready for review'}}]}}}}
-        },
-        'remove_from_labels': {'args': ('ready for review',)},
-        'add_to_assignees': {'args': ('user1',)},
+        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        'get_issue_comment.create_reaction': "Call('+1')",
+        'add_to_labels': "Call('awaiting author revision')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+        'remove_from_labels': "Call('ready for review')",
+        'add_to_assignees': "Call('user1')",
     }
 
 
-def test_request_review(settings):
-    gh_pr = Magic()
+def test_request_review(settings, gh_pr, gh_repo):
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='user1'), id=123456),
         'other',
@@ -84,18 +104,19 @@ def test_request_review(settings):
     assert acted
     assert msg == 'Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
     assert gh_pr.__history__ == {
-        'get_issue_comment': {'args': (123456,), 'return': {'create_reaction': {'args': ('+1',)}}},
-        'add_to_labels': {'args': ('ready for review',)},
-        'get_labels': {'return': {'__iter__': {'return': []}}},
-        'add_to_assignees': {'args': ('user1', 'user2')},
-        'remove_from_assignees': {'args': ('other',)},
+        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        'get_issue_comment.create_reaction': "Call('+1')",
+        'add_to_labels': "Call('ready for review')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+        'add_to_assignees': "Call('user1', 'user2')",
+        'remove_from_assignees': "Call('other')",
     }
 
 
-def test_request_review_from_review(settings):
-    gh_pr = Magic()
+def test_request_review_from_review(settings, gh_pr, gh_repo):
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'review',
         Comment(body='x', user=User(login='other'), id=123456),
         'other',
@@ -106,27 +127,32 @@ def test_request_review_from_review(settings):
     assert acted
     assert msg == 'Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
     assert gh_pr.__history__ == {
-        'add_to_labels': {'args': ('ready for review',)},
-        'get_labels': {'return': {'__iter__': {'return': []}}},
-        'add_to_assignees': {'args': ('user1', 'user2')},
-        'remove_from_assignees': {'args': ('other',)},
+        'add_to_labels': "Call('ready for review')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+        'add_to_assignees': "Call('user1', 'user2')",
+        'remove_from_assignees': "Call('other')",
     }
 
 
-def test_request_review_not_author(settings):
-    gh_pr = Magic()
+def test_request_review_not_author(settings, gh_pr, gh_repo):
     la = LabelAssign(
-        gh_pr, 'comment', Comment(body='x', user=User(login='commenter'), id=123456), 'the_auth', RepoConfig(), settings
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='commenter'), id=123456),
+        'the_auth',
+        RepoConfig(),
+        settings,
     )
     acted, msg = la.request_review()
     assert not acted
     assert msg == 'Only the PR author the_auth or reviewers can request a review, not commenter'
 
 
-def test_assign_author_not_reviewer(settings):
-    gh_pr = Magic()
+def test_assign_author_not_reviewer(settings, gh_pr, gh_repo):
     la = LabelAssign(
         gh_pr,
+        gh_repo,
         'comment',
         Comment(body='x', user=User(login='other'), id=123456),
         'user1',
@@ -137,12 +163,53 @@ def test_assign_author_not_reviewer(settings):
     assert gh_pr.__history__ == {}
 
 
-def test_assign_author_no_reviewers(settings):
-    gh_pr = Magic()
+def test_assign_author_no_reviewers(settings, gh_pr, gh_repo):
     la = LabelAssign(
-        gh_pr, 'comment', Comment(body='x', user=User(login='other'), id=123456), 'user1', RepoConfig(), settings
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'user1',
+        RepoConfig(),
+        settings,
     )
     assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not other')
+    assert gh_repo.__history__ == {
+        'get_collaborators': "Call() -> IterBlock('collaborator')",
+        'get_collaborators.collaborator': 'Iter()',
+    }
+    assert gh_pr.__history__ == {}
+
+
+def test_get_collaborators(settings, gh_pr):
+    gh_repo = AttrBlock(
+        'GhRepo',
+        get_collaborators=CallableBlock(
+            'get_collaborators',
+            IterBlock(
+                'collaborator', AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2')
+            ),
+        ),
+    )
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='other'), id=123456),
+        'user1',
+        RepoConfig(),
+        settings,
+    )
+    assert la.assign_author() == (False, 'Only reviewers "colab1", "colab2" can assign the author, not other')
+    assert gh_repo.__history__ == {
+        'get_collaborators': (
+            "Call() -> IterBlock('collaborator', "
+            "AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+        ),
+        'get_collaborators.collaborator': (
+            "Iter(AttrBlock('collaborator', login='colab1'), AttrBlock('collaborator', login='colab2'))"
+        ),
+    }
     assert gh_pr.__history__ == {}
 
 
@@ -173,19 +240,39 @@ def test_change_user_bot(settings):
     assert check_change_file(e, settings) == (False, '[Check change file] Pull Request author is a bot')
 
 
+def build_gh(*, pr_files: tuple[AttrBlock, ...] = (), get_contents: CallableBlock = None):
+    if get_contents is None:
+        get_contents = CallableBlock('get_contents', raises=GithubException(404, 'Not Found', {}))
+
+    return AttrBlock(
+        'Gh',
+        _requester=AttrBlock(
+            'Requestor', _Requester__connection=AttrBlock('Connection', session=CallableBlock('session'))
+        ),
+        get_pull=CallableBlock(
+            'get_pull',
+            AttrBlock(
+                'PullRequest',
+                get_commits=CallableBlock(
+                    'get_commits',
+                    IterBlock('commits', None, AttrBlock('Commit', create_status=CallableBlock('create_status'))),
+                ),
+                get_files=CallableBlock('get_files', IterBlock('files', *pr_files)),
+                base=AttrBlock(
+                    'Base', ref='foobar', repo=AttrBlock('Repo', full_name='user/repo', get_contents=get_contents)
+                ),
+            ),
+        ),
+    )
+
+
 def test_change_no_change_comment(settings, mocker):
     e = PullRequestUpdateEvent(
         action='opened',
         pull_request=PullRequest(number=123, state='open', user=User(login='foobar'), body='skip change file check'),
         repository=Repository(full_name='user/repo', owner=User(login='user1')),
     )
-    gh = Magic(
-        _requester=Magic(_Requester__connection=Magic(session=Magic())),
-        get_pull=Magic(
-            get_commits=Magic(__iter__=[None, Magic()]),
-            base=Magic(repo=Magic(get_contents=MagicMock(side_effect=GithubException(404, 'Not Found', {})))),
-        ),
-    )
+    gh = build_gh()
     mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
     assert check_change_file(e, settings) == (
         True,
@@ -213,13 +300,7 @@ def test_change_no_change_file(settings, mocker):
         pull_request=PullRequest(number=123, state='open', user=User(login='foobar'), body=None),
         repository=Repository(full_name='user/repo', owner=User(login='user1')),
     )
-    gh = Magic(
-        _requester=Magic(_Requester__connection=Magic(session=Magic())),
-        get_pull=Magic(
-            get_commits=Magic(__iter__=[None, Magic()]),
-            base=Magic(repo=Magic(get_contents=MagicMock(side_effect=GithubException(404, 'Not Found', {})))),
-        ),
-    )
+    gh = build_gh()
     mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
     assert check_change_file(e, settings) == (
         True,
@@ -235,15 +316,14 @@ def test_change_file_not_required(settings, mocker):
         repository=Repository(full_name='user/repo', owner=User(login='user1')),
     )
     config_change_not_required = base64.b64encode(b'[tool.hooky]\nrequire_change_file = false').decode()
-    gh = Magic(
-        _requester=Magic(_Requester__connection=Magic(session=Magic())),
-        get_pull=Magic(
-            get_commits=Magic(__iter__=[None, Magic()]),
-            base=Magic(repo=Magic(get_contents=Magic(content=config_change_not_required))),
-        ),
+    get_contents = CallableBlock(
+        'get_contents', AttrBlock('File', status='added', content=config_change_not_required, filename='.hooky.toml')
     )
+    gh = build_gh(get_contents=get_contents)
     mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
-    assert check_change_file(e, settings) == (False, '[Check change file] change file not required')
+    act, msg = check_change_file(e, settings)
+    assert not act
+    assert msg == '[Check change file] change file not required'
 
 
 def test_file_content_match_pr():

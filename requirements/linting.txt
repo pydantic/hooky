@@ -4,8 +4,6 @@
 #
 #    pip-compile --output-file=requirements/linting.txt requirements/linting.in
 #
-attrs==22.1.0
-    # via hypothesis
 black==22.8.0
     # via -r requirements/linting.in
 cfgv==3.3.1
@@ -16,8 +14,6 @@ colorama==0.4.5
     # via isort
 distlib==0.3.6
     # via virtualenv
-exceptiongroup==1.0.0rc9
-    # via hypothesis
 filelock==3.8.0
     # via virtualenv
 flake8==5.0.4
@@ -28,8 +24,6 @@ flake8==5.0.4
 flake8-pyproject==1.1.0.post0
     # via -r requirements/linting.in
 flake8-quotes==3.3.1
-    # via -r requirements/linting.in
-hypothesis==6.54.5
     # via -r requirements/linting.in
 identify==2.5.5
     # via pre-commit
@@ -61,8 +55,6 @@ pyupgrade==2.37.3
     # via -r requirements/linting.in
 pyyaml==6.0
     # via pre-commit
-sortedcontainers==2.4.0
-    # via hypothesis
 tokenize-rt==4.2.1
     # via pyupgrade
 toml==0.10.2

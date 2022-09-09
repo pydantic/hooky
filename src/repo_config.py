@@ -48,9 +48,11 @@ class RepoConfig(BaseModel):
         prefix = f'{repo.full_name}#{ref}' if ref else f'{repo.full_name}#[default]'
         try:
             f = repo.get_contents('.hooky.toml', **kwargs)
+            prefix += '/.hooky.toml'
         except GithubException:
             try:
                 f = repo.get_contents('pyproject.toml', **kwargs)
+                prefix += '/pyproject.toml'
             except GithubException as exc:
                 log(f'{prefix}, No ".hooky.toml" or "pyproject.toml" found, using defaults: {exc}')
                 return None
@@ -59,7 +61,7 @@ class RepoConfig(BaseModel):
         try:
             config = rtoml.loads(content.decode())
         except ValueError:
-            log(f'{prefix}, Invalid pyproject.toml, using defaults')
+            log(f'{prefix}, Invalid config file, using defaults')
             return None
         try:
             hooky_config = config['tool']['hooky']
