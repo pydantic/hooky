@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import os
 from pathlib import Path
 
@@ -37,10 +38,30 @@ async def webhook(request: Request, x_hub_signature_256: str = Header(default=''
     digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
 
     if not hmac.compare_digest(f'sha256={digest}', x_hub_signature_256):
-        log(f'{digest=} {x_hub_signature_256=}')
+        log(f'Invalid signature: {digest=} {x_hub_signature_256=}')
         raise HTTPException(status_code=403, detail='Invalid signature')
 
     action_taken, message = await asyncify(process_event)(request_body=request_body, settings=settings)
     message = message if action_taken else f'{message}, no action taken'
     log(message)
     return PlainTextResponse(message, status_code=200 if action_taken else 202)
+
+
+@app.post('/marketplace/')
+async def marketplace_webhook(request: Request, x_hub_signature_256: str = Header(default='')):
+    request_body = await request.body()
+
+    body = json.loads(request_body)
+    log(f'Marketplace webhook: { json.dumps(body, indent=2)}')
+
+    secret = settings.marketplace_webhook_secret
+    if secret is None:
+        raise HTTPException(status_code=403, detail='Marketplace secret not configured')
+
+    digest = hmac.new(secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(f'sha256={digest}', x_hub_signature_256):
+        log(f'Invalid marketplace signature: {digest=} {x_hub_signature_256=}')
+        raise HTTPException(status_code=403, detail='Invalid marketplace signature')
+
+    return PlainTextResponse('ok', status_code=202)

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     github_app_id: str = '227243'
     github_app_secret_key: FilePath = 'github_app_secret_key.pem'
     webhook_secret: SecretBytes
+    marketplace_webhook_secret: SecretBytes = None
     redis_dsn: RedisDsn = 'redis://localhost:6379'
     config_cache_timeout: int = 600
 
