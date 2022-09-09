@@ -2,11 +2,13 @@ import asyncio
 import hashlib
 import hmac
 import json
+from typing import Any
 
 import pytest
 import redis
 from foxglove.test_server import create_dummy_server
 from foxglove.testing import TestClient
+from requests import Response as RequestsResponse
 
 from src.settings import Settings
 
@@ -22,12 +24,6 @@ def fix_settings():
         marketplace_webhook_secret=b'marketplace_webhook_secret',
         github_app_secret_key='tests/test_github_app_secret_key.pem',
     )
-
-
-class Client(TestClient):
-    """
-    Subclass in case we want to extend in future without refactoring
-    """
 
 
 @pytest.fixture(name='loop')
@@ -46,11 +42,22 @@ def fix_flush_redis(settings):
         redis_client.flushdb()
 
 
+class Client(TestClient):
+    def __init__(self, app, settings: Settings):
+        super().__init__(app)
+        self.settings = settings
+
+    def webhook(self, data: dict[str, Any]) -> RequestsResponse:
+        request_body = json.dumps(data).encode()
+        digest = hmac.new(self.settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
+        return self.post('/', data=request_body, headers={'x-hub-signature-256': f'sha256={digest}'})
+
+
 @pytest.fixture(name='client')
 def fix_client(settings: Settings, loop):
     from src import app
 
-    with Client(app) as client:
+    with Client(app, settings) as client:
         yield client
 
 
@@ -67,13 +74,3 @@ def _fix_dummy_server(loop, flush_redis):
     yield ds
 
     loop.run_until_complete(ds.stop())
-
-
-@pytest.fixture(name='webhook')
-def fix_webhook(settings: Settings, client: Client):
-    def post_webhook(data):
-        request_body = json.dumps(data).encode()
-        digest = hmac.new(settings.webhook_secret.get_secret_value(), request_body, hashlib.sha256).hexdigest()
-        return client.post('/', data=request_body, headers={'x-hub-signature-256': f'sha256={digest}'})
-
-    return post_webhook

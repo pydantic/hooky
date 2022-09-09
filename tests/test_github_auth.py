@@ -2,8 +2,10 @@ from foxglove.test_server import DummyServer
 
 from src.settings import Settings
 
+from .conftest import Client
 
-def test_config_cached(webhook, settings: Settings, dummy_server: DummyServer):
+
+def test_config_cached(client: Client, settings: Settings, dummy_server: DummyServer):
     data = {
         'comment': {'body': 'Hello world', 'user': {'login': 'user1'}, 'id': 123456},
         'issue': {
@@ -13,7 +15,7 @@ def test_config_cached(webhook, settings: Settings, dummy_server: DummyServer):
         },
         'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
     }
-    r = webhook(data)
+    r = client.webhook(data)
     assert r.status_code == 202, r.text
     assert r.text == (
         "[Label and assign] neither 'please update' nor 'please review' found in comment body, no action taken"
@@ -29,7 +31,7 @@ def test_config_cached(webhook, settings: Settings, dummy_server: DummyServer):
     assert dummy_server.log == log1
 
     # do it again, installation is cached
-    r = webhook(data)
+    r = client.webhook(data)
     assert r.status_code == 202, r.text
     assert r.text == (
         "[Label and assign] neither 'please update' nor 'please review' found in comment body, no action taken"

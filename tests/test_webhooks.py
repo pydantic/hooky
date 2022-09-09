@@ -30,8 +30,8 @@ def test_auth_fails_wrong_header(client: Client, settings: Settings):
     assert r.json() == {'detail': 'Invalid signature'}
 
 
-def test_issue(webhook):
-    r = webhook(
+def test_issue(client: Client):
+    r = client.webhook(
         {
             'comment': {'body': 'Hello world', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {'user': {'login': 'user1'}, 'number': 123},
@@ -42,8 +42,8 @@ def test_issue(webhook):
     assert r.text == 'action only applies to Pull Requests, not Issues, no action taken'
 
 
-def test_please_review(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_please_review(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
@@ -73,8 +73,8 @@ def test_please_review(dummy_server: DummyServer, webhook):
     ]
 
 
-def test_please_review_no_reviews(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
@@ -108,8 +108,8 @@ def test_please_review_no_reviews(dummy_server: DummyServer, webhook):
     ]
 
 
-def test_comment_please_update(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_comment_please_update(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'comment': {'body': 'Hello world, please update', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
@@ -140,8 +140,8 @@ def test_comment_please_update(dummy_server: DummyServer, webhook):
     ]
 
 
-def test_review_please_update(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_review_please_update(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'review': {'body': 'Hello world', 'user': {'login': 'user1'}, 'state': 'comment'},
             'pull_request': {
@@ -167,8 +167,8 @@ def test_review_please_update(dummy_server: DummyServer, webhook):
     ]
 
 
-def test_review_no_body(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_review_no_body(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'review': {'body': None, 'user': {'login': 'user1'}, 'state': 'comment'},
             'pull_request': {
@@ -185,8 +185,8 @@ def test_review_no_body(dummy_server: DummyServer, webhook):
     assert dummy_server.log == []
 
 
-def test_change_file(dummy_server: DummyServer, webhook):
-    r = webhook(
+def test_change_file(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
         {
             'action': 'opened',
             'pull_request': {'number': 123, 'user': {'login': 'foobar'}, 'state': 'open', 'body': 'this is a new PR'},
