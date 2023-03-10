@@ -177,6 +177,25 @@ class LabelAssign:
             True,
             f'Author {self.author} successfully assigned to PR, "{self.config.awaiting_update_label}" label added',
         )
+    
+    def parse_magic_string(self) -> str:
+        """
+            Parses the commit body to find magic string
+        """
+
+        _username = None
+        search_username = re.findall(r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$', self.comment.body)
+
+
+        if(len(search_username)):
+            # found magic comment
+            _username = search_username[0].split('@')[1]
+        else:
+            _username = random.choice(self.reviewers)
+            self.comment.body += f"\n\n{_username}"
+        
+        return _username
+
 
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
@@ -186,9 +205,7 @@ class LabelAssign:
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)
         self.remove_label(self.config.awaiting_update_label)
-
-        if len(self.reviewers):
-            self.gh_pr.add_to_assignees(random.choice(self.reviewers))
+        self.gh_pr.add_to_assignees(self.parse_magic_string())
 
         if self.author not in self.reviewers:
             self.gh_pr.remove_from_assignees(self.author)
