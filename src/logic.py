@@ -185,8 +185,29 @@ class LabelAssign:
         """
         Parses the PR body to find magic string
         
-        return _username
+        :param pull_request_body: Accepts either Issue or Pull Request. Required to parse body contents.
+        :param settings: Settings to access redis. 
+        :return: returns text to be appended to the pull request body.
+        """
+        self.gh_pr.remove_from_assignees(self.author) # remove author from assignees
 
+        with redis.from_url(settings.redis_dsn) as redis_client:
+            if (isinstance(pull_request, PullRequest)) and pull_request.body is not None: # only PullRequest class has body
+                search_username = re.search(r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$', pull_request.body)
+                if search_username: # found magic comment
+                    username = search_username[0].split('@')[1]
+                    redis_client.set('hooky_last_assigned_reviwer', username)
+                    self.gh_pr.add_to_assignees(username)
+                    return pull_request
+
+            if redis_client.exists('hooky_last_assigned_reviwer'): # if last reviewer exists
+                last_assignee = redis_client.get('hooky_last_assigned_reviwer')
+                self.gh_pr.remove_from_assignees(last_assignee) # remove last assigned from assignees
+
+            username = random.choice(self.reviewers) # allot to random user
+            redis_client.set('hooky_last_assigned_reviwer', username)
+            # pull_request.body += "\n\nprimary-reviewer:{}".format(username)
+            return pull_request        
 
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
