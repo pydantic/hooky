@@ -181,7 +181,7 @@ class LabelAssign:
             f'Author {self.author} successfully assigned to PR, "{self.config.awaiting_update_label}" label added',
         )
     
-    def parse_magic_string(self) -> str:
+    def parse_magic_string(self, pull_request: Issue | PullRequest, settings: Settings) -> Issue | PullRequest:
         """
             Parses the commit body to find magic string
         """
