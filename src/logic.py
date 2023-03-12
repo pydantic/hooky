@@ -3,6 +3,7 @@ import re
 from textwrap import indent
 from typing import Literal
 
+import redis
 from github import PullRequest as GhPullRequest, Repository as GhRepository
 from pydantic import BaseModel, parse_raw_as
 
@@ -10,7 +11,6 @@ from .github_auth import get_repo_client
 from .repo_config import RepoConfig
 from .settings import Settings, log
 
-import redis
 
 __all__ = ('process_event',)
 
