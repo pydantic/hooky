@@ -183,19 +183,7 @@ class LabelAssign:
     
     def parse_magic_string(self, pull_request: Issue | PullRequest, settings: Settings) -> Issue | PullRequest:
         """
-            Parses the commit body to find magic string
-        """
-
-        _username = None
-        search_username = re.findall(r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$', self.comment.body)
-
-
-        if(len(search_username)):
-            # found magic comment
-            _username = search_username[0].split('@')[1]
-        else:
-            _username = random.choice(self.reviewers)
-            self.comment.body += f"\n\n{_username}"
+        Parses the PR body to find magic string
         
         return _username
 
