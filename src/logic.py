@@ -194,7 +194,8 @@ class LabelAssign:
         with redis.from_url(settings.redis_dsn) as redis_client:
             if (isinstance(pull_request, PullRequest)):
                 if pull_request.body is not None:  # only PullRequest class has body
-                    search_username = re.search(r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$', pull_request.body)
+                    REGEX_EXPRESSION = r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$'
+                    search_username = re.search(REGEX_EXPRESSION, pull_request.body)
                     if search_username:  # found magic comment
                         username = search_username[0].split('@')[1]
                         redis_client.set('hooky_last_assigned_reviwer', username)
