@@ -217,8 +217,7 @@ class LabelAssign:
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)
         self.remove_label(self.config.awaiting_update_label)
-        self.gh_pr.add_to_assignees(self.parse_magic_string())
-
+        # self.gh_pr.add_to_assignees(*self.reviewers)
         if self.author not in self.reviewers:
             self.gh_pr.remove_from_assignees(self.author)
 
