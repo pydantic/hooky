@@ -99,11 +99,11 @@ def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
         'GET /repos/foobar/no_reviewers/contents/.hooky.toml > 404',
         'GET /repos/foobar/no_reviewers/contents/pyproject.toml > 404',
         'GET /repos/foobar/no_reviewers/collaborators > 200',
+        'DELETE /repos/foobar/no_reviewers/issues/123/assignees > 200',
         'GET /repos/foobar/no_reviewers/issues/comments/123456 > 200',
         'POST /repos/foobar/no_reviewers/comments/123456/reactions > 200',
         'POST /repos/foobar/no_reviewers/issues/123/labels > 200',
         'GET /repos/foobar/no_reviewers/issues/123/labels > 200',
-        'POST /repos/foobar/no_reviewers/issues/123/assignees > 200',
         'DELETE /repos/foobar/no_reviewers/issues/123/assignees > 200',
     ]
 
@@ -164,6 +164,7 @@ def test_review_please_update(dummy_server: DummyServer, client: Client):
         'GET /repos/user1/repo1/pulls/123 > 200',
         'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
+        'DELETE /repos/user1/repo1/issues/123/assignees > 200',
     ]
 
 
