@@ -191,7 +191,7 @@ class LabelAssign:
         self.gh_pr.remove_from_assignees(self.author)  # remove author from assignees
 
         with redis.from_url(settings.redis_dsn) as redis_client:
-            if (isinstance(pull_request, PullRequest)):
+            if isinstance(pull_request, PullRequest):
                 if pull_request.body is not None:  # only PullRequest class has body
                     REGEX_EXPRESSION = r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$'
                     search_username = re.search(REGEX_EXPRESSION, pull_request.body)
