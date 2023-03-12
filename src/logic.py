@@ -33,6 +33,7 @@ class Issue(BaseModel):
     pull_request: IssuePullRequest | None = None
     user: User
     number: int
+    body: str = ""
 
 
 class Repository(BaseModel):
