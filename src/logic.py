@@ -33,7 +33,7 @@ class Issue(BaseModel):
     pull_request: IssuePullRequest | None = None
     user: User
     number: int
-    body: str = ""
+    body: str = ''
 
 
 class Repository(BaseModel):
@@ -189,10 +189,10 @@ class LabelAssign:
         :param settings: Settings to access redis.
         :return: returns text to be appended to the pull request body.
         """
-        self.gh_pr.remove_from_assignees(self.author) # remove author from assignees
+        self.gh_pr.remove_from_assignees(self.author)  # remove author from assignees
 
         with redis.from_url(settings.redis_dsn) as redis_client:
-            if (isinstance(pull_request, PullRequest)) and pull_request.body is not None: # only PullRequest class has body
+            if (isinstance(pull_request, PullRequest)) and pull_request.body is not None:  # only PullRequest class has body
                 search_username = re.search(r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$', pull_request.body)
                 if search_username: # found magic comment
                     username = search_username[0].split('@')[1]
@@ -200,11 +200,11 @@ class LabelAssign:
                     self.gh_pr.add_to_assignees(username)
                     return pull_request
 
-            if redis_client.exists('hooky_last_assigned_reviwer'): # if last reviewer exists
+            if redis_client.exists('hooky_last_assigned_reviwer'):  # if last reviewer exists
                 last_assignee = redis_client.get('hooky_last_assigned_reviwer')
-                self.gh_pr.remove_from_assignees(last_assignee) # remove last assigned from assignees
+                self.gh_pr.remove_from_assignees(last_assignee)  # remove last assigned from assignees
 
-            username = random.choice(self.reviewers) # allot to random user
+            username = random.choice(self.reviewers)  # allot to random user
             redis_client.set('hooky_last_assigned_reviwer', username)
             # pull_request.body += "\n\nprimary-reviewer:{}".format(username)
             return pull_request
