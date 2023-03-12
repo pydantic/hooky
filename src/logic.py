@@ -11,7 +11,6 @@ from .github_auth import get_repo_client
 from .repo_config import RepoConfig
 from .settings import Settings, log
 
-
 __all__ = ('process_event',)
 
 
