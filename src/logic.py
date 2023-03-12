@@ -124,10 +124,10 @@ def label_assign(
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_pr = gh_repo.get_pull(pr.number)
         config = RepoConfig.load(gh_pr, settings)
-
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
         label_assign_ = LabelAssign(gh_pr, gh_repo, event_type, comment, pr.user.login, config, settings)
+        pr = label_assign_.parse_magic_string(pr, settings)
         if config.request_review_trigger in body:
             action_taken, msg = label_assign_.request_review()
         elif config.request_update_trigger in body or force_assign_author:
