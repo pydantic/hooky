@@ -180,13 +180,13 @@ class LabelAssign:
             True,
             f'Author {self.author} successfully assigned to PR, "{self.config.awaiting_update_label}" label added',
         )
-    
+
     def parse_magic_string(self, pull_request: Issue | PullRequest, settings: Settings) -> Issue | PullRequest:
         """
         Parses the PR body to find magic string
-        
+
         :param pull_request_body: Accepts either Issue or Pull Request. Required to parse body contents.
-        :param settings: Settings to access redis. 
+        :param settings: Settings to access redis.
         :return: returns text to be appended to the pull request body.
         """
         self.gh_pr.remove_from_assignees(self.author) # remove author from assignees
@@ -207,7 +207,7 @@ class LabelAssign:
             username = random.choice(self.reviewers) # allot to random user
             redis_client.set('hooky_last_assigned_reviwer', username)
             # pull_request.body += "\n\nprimary-reviewer:{}".format(username)
-            return pull_request        
+            return pull_request
 
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
