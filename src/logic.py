@@ -140,7 +140,7 @@ def label_assign(
     return action_taken, f'[Label and assign] {msg}'
 
 
-# for example "primary-reviewer: @samuelcolvin"
+# for example "Selected Reviewer: @samuelcolvin"
 reviewer_regex = re.compile(r'selected[ -]reviewer:\s*@([\w\-]+)$', flags=re.I)
 
 
@@ -189,7 +189,7 @@ class LabelAssign:
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
         if not (self.commenter_is_reviewer or commenter_is_author):
-            return False, f'Only the PR author {self.author} or reviewers can request a review, not "{self.commenter}"'
+            return False, f'Only the PR author @{self.author} or reviewers can request a review, not "{self.commenter}"'
 
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)
@@ -233,19 +233,21 @@ class LabelAssign:
         Parses the PR body to find the reviewer, otherwise choose a reviewer by round-robin from `self.reviewers`
         and update the PR body to include the reviewer magic comment.
         """
-        pr_body = self.gh_pr.body
-        if pr_body is not None:
-            if m := reviewer_regex.search(pr_body):  # found magic comment
-                username = m.group(1)
-                if username in self.reviewers:
-                    return username
-                else:
-                    raise RuntimeError(f'Selected reviewer @{username} not in reviewers.')
+        pr_body = self.gh_pr.body or ''
+        if m := reviewer_regex.search(pr_body):
+            # found the magic comment, inspect it
+            username = m.group(1)
+            if username in self.reviewers:
+                # valid reviewer in the comment, no need to do anything else
+                return username
+            else:
+                raise RuntimeError(f'Selected reviewer @{username} not in reviewers.')
 
-        key = f'reviewer:{self.repo_fullname}'
         # reviewer not found in the PR body, choose a reviewer by round-robin
+        key = f'reviewer:{self.repo_fullname}'
         with redis.from_url(self.settings.redis_dsn) as redis_client:
             # we can deal with the error when reviewer index exceeds 2**64, when it happens!
+            # `-1` so we start from the 0th element, mostly to make tests clearer
             reviewer_index = redis_client.incr(key) - 1
             reviewer = self.get_reviewer(reviewer_index)
             if reviewer == self.author:

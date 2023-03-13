@@ -235,7 +235,7 @@ def test_request_review_not_author(settings, gh_pr, gh_repo):
     )
     acted, msg = la.request_review()
     assert not acted
-    assert msg == 'Only the PR author the_auth or reviewers can request a review, not "commenter"'
+    assert msg == 'Only the PR author @the_auth or reviewers can request a review, not "commenter"'
 
 
 def test_assign_author_not_reviewer(settings, gh_pr, gh_repo):
