@@ -3,7 +3,7 @@ paths = src tests
 
 .PHONY: install
 install:
-	pip install -U pip pre-commit
+	pip install -U pip pre-commit pip-tools
 	pip install -r requirements/all.txt
 	pre-commit install
 
@@ -15,7 +15,7 @@ format:
 
 .PHONY: lint
 lint:
-	flake8 $(paths)
+	ruff $(paths)
 	isort $(paths) --check-only --df
 	black $(paths) --check --diff
 
