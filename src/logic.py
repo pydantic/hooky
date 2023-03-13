@@ -1,4 +1,3 @@
-import random
 import re
 from textwrap import indent
 from typing import Literal
@@ -122,10 +121,12 @@ def label_assign(
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_pr = gh_repo.get_pull(pr.number)
         config = RepoConfig.load(gh_pr, settings)
+
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
-        label_assign_ = LabelAssign(gh_pr, gh_repo, event_type, comment, pr.user.login, config, settings)
-        pr = label_assign_.parse_magic_string(pr, settings)
+        label_assign_ = LabelAssign(
+            gh_pr, gh_repo, event_type, comment, pr.user.login, event.repository.full_name, config, settings
+        )
         if config.request_review_trigger in body:
             action_taken, msg = label_assign_.request_review()
         elif config.request_update_trigger in body or force_assign_author:
@@ -139,6 +140,10 @@ def label_assign(
     return action_taken, f'[Label and assign] {msg}'
 
 
+# for example "primary-reviewer: @samuelcolvin"
+reviewer_regex = re.compile(r'selected[ -]reviewer:\s*@([\w\-]+)$', flags=re.I)
+
+
 class LabelAssign:
     def __init__(
         self,
@@ -147,6 +152,7 @@ class LabelAssign:
         event_type: Literal['comment', 'review'],
         comment: Comment,
         author: str,
+        repo_fullname: str,
         config: RepoConfig,
         settings: Settings,
     ):
@@ -155,6 +161,7 @@ class LabelAssign:
         self.comment = comment
         self.commenter = comment.user.login
         self.author = author
+        self.repo_fullname = repo_fullname
         self.config = config
         self.settings = settings
         if config.reviewers:
@@ -179,37 +186,6 @@ class LabelAssign:
             f'Author {self.author} successfully assigned to PR, "{self.config.awaiting_update_label}" label added',
         )
 
-    def parse_magic_string(self, pull_request: Issue | PullRequest, settings: Settings) -> Issue | PullRequest:
-        """
-        Parses the PR body to find magic string
-
-        :param pull_request_body: Accepts either Issue or Pull Request. Required to parse body contents.
-        :param settings: Settings to access redis.
-        :return: returns text to be appended to the pull request body.
-        """
-        self.gh_pr.remove_from_assignees(self.author)  # remove author from assignees
-
-        with redis.from_url(settings.redis_dsn) as redis_client:
-            if isinstance(pull_request, PullRequest):
-                if pull_request.body is not None:  # only PullRequest class has body
-                    REGEX_EXPRESSION = r'primary-reviewer:\s@[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$'
-                    search_username = re.search(REGEX_EXPRESSION, pull_request.body)
-                    if search_username:  # found magic comment
-                        username = search_username[0].split('@')[1]
-                        redis_client.set('hooky_last_assigned_reviwer', username)
-                        self.gh_pr.add_to_assignees(username)
-                        return pull_request
-
-            if redis_client.exists('hooky_last_assigned_reviwer'):  # if last reviewer exists
-                last_assignee = redis_client.get('hooky_last_assigned_reviwer')
-                self.gh_pr.remove_from_assignees(last_assignee)  # remove last assigned from assignees
-
-            username = random.choice(self.reviewers)  # allot to random user
-            redis_client.set('hooky_last_assigned_reviwer', username)
-            if isinstance(pull_request, PullRequest):
-                pull_request.body += f'\n\nprimary-reviewer:{username}'
-            return pull_request
-
     def request_review(self) -> tuple[bool, str]:
         commenter_is_author = self.author == self.commenter
         if not (self.commenter_is_reviewer or commenter_is_author):
@@ -218,13 +194,18 @@ class LabelAssign:
         self.add_reaction()
         self.gh_pr.add_to_labels(self.config.awaiting_review_label)
         self.remove_label(self.config.awaiting_update_label)
-        # self.gh_pr.add_to_assignees(*self.reviewers)
-        if self.author not in self.reviewers:
-            self.gh_pr.remove_from_assignees(self.author)
+
+        try:
+            reviewer = self.find_reviewer()
+        except RuntimeError as e:
+            return False, str(e)
+
+        self.gh_pr.add_to_assignees(reviewer)
+        self.gh_pr.remove_from_assignees(self.author)
 
         return (
             True,
-            f'Reviewers {self.show_reviewers()} successfully assigned to PR, '
+            f'@{reviewer} successfully assigned to PR as reviewer, '
             f'"{self.config.awaiting_review_label}" label added',
         )
 
@@ -246,6 +227,38 @@ class LabelAssign:
             return ', '.join(f'"{r}"' for r in self.reviewers)
         else:
             return '(no reviewers configured)'
+
+    def find_reviewer(self) -> str:
+        """
+        Parses the PR body to find the reviewer, otherwise choose a reviewer by round-robin from `self.reviewers`
+        and update the PR body to include the reviewer magic comment.
+        """
+        pr_body = self.gh_pr.body
+        if pr_body is not None:
+            if m := reviewer_regex.search(pr_body):  # found magic comment
+                username = m.group(1)
+                if username in self.reviewers:
+                    return username
+                else:
+                    raise RuntimeError(f'Selected reviewer @{username} not in reviewers.')
+
+        key = f'reviewer:{self.repo_fullname}'
+        # reviewer not found in the PR body, choose a reviewer by round-robin
+        with redis.from_url(self.settings.redis_dsn) as redis_client:
+            # we can deal with the error when reviewer index exceeds 2**64, when it happens!
+            reviewer_index = redis_client.incr(key) - 1
+            reviewer = self.get_reviewer(reviewer_index)
+            if reviewer == self.author:
+                # if the reviewer is the author, choose the next reviewer
+                # increment the index again so the same person isn't assigned next time
+                reviewer_index = redis_client.incr(key) - 1
+                reviewer = self.get_reviewer(reviewer_index)
+
+        self.gh_pr.edit(body=f'{pr_body}\n\nSelected Reviewer: @{reviewer}')
+        return reviewer
+
+    def get_reviewer(self, reviewer_index: int) -> str:
+        return self.reviewers[reviewer_index % len(self.reviewers)]
 
 
 closed_issue_template = (
