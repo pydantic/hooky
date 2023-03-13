@@ -33,6 +33,7 @@ class Issue(BaseModel):
     user: User
     number: int
 
+
 class Repository(BaseModel):
     full_name: str
     owner: User
