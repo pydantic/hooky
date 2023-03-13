@@ -56,7 +56,7 @@ def test_please_review(dummy_server: DummyServer, client: Client):
     )
     assert r.status_code == 200, r.text
     assert r.text == (
-        '[Label and assign] Reviewers "user1", "user2" successfully assigned to PR, "ready for review" label added'
+        '[Label and assign] @user2 successfully assigned to PR as reviewer, "ready for review" label added'
     )
     assert dummy_server.log == [
         'GET /repos/user1/repo1/installation > 200',
@@ -69,7 +69,9 @@ def test_please_review(dummy_server: DummyServer, client: Client):
         'POST /repos/user1/repo1/comments/123456/reactions > 200',
         'POST /repos/user1/repo1/issues/123/labels > 200',
         'GET /repos/user1/repo1/issues/123/labels > 200',
+        'PATCH /repos/user1/repo1/pulls/123 > 200',
         'POST /repos/user1/repo1/issues/123/assignees > 200',
+        'DELETE /repos/user1/repo1/issues/123/assignees > 200',
     ]
 
 
@@ -87,7 +89,7 @@ def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
     )
     assert r.status_code == 200, r.text
     assert r.text == (
-        '[Label and assign] Reviewers "foobar", "an_other" successfully assigned to PR, "ready for review" label added'
+        '[Label and assign] @foobar successfully assigned to PR as reviewer, "ready for review" label added'
     )
     assert dummy_server.log == [
         'GET /repos/foobar/no_reviewers/installation > 200',
@@ -103,6 +105,7 @@ def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
         'POST /repos/foobar/no_reviewers/comments/123456/reactions > 200',
         'POST /repos/foobar/no_reviewers/issues/123/labels > 200',
         'GET /repos/foobar/no_reviewers/issues/123/labels > 200',
+        'PATCH /repos/foobar/no_reviewers/pulls/123 > 200',
         'POST /repos/foobar/no_reviewers/issues/123/assignees > 200',
         'DELETE /repos/foobar/no_reviewers/issues/123/assignees > 200',
     ]

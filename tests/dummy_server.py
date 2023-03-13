@@ -31,6 +31,10 @@ async def pull_details(request: Request) -> Response:
     )
 
 
+async def pull_patch(_request: Request) -> Response:
+    return json_response({'patch': 'foobar'})
+
+
 async def pull_files(_request: Request) -> Response:
     return json_response(
         [
@@ -126,6 +130,7 @@ async def catch_all(request: Request) -> Response:
 routes = [
     web.get('/repos/{org}/{repo}', repo_details),
     web.get('/repos/{org}/{repo}/pulls/{pull_number}', pull_details),
+    web.patch('/repos/{org}/{repo}/pulls/{pull_number}', pull_patch),
     web.get('/repos/{org}/{repo}/pulls/{pull_number}/files', pull_files),
     web.get('/repos/{org}/{repo}/pulls/{pull_number}/commits', pull_commits),
     web.post('/repos/{org}/{repo}/statuses/{commit}', update_status),
