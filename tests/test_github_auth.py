@@ -27,6 +27,7 @@ def test_config_cached(client: Client, settings: Settings, dummy_server: DummySe
         'GET /repos/user1/repo1/pulls/123 > 200',
         'GET /repos/user1/repo1/contents/.hooky.toml?ref=main > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml?ref=main > 200',
+        'DELETE /repos/user1/repo1/issues/123/assignees > 200',
     ]
     assert dummy_server.log == log1
 
