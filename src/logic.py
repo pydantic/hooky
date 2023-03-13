@@ -207,7 +207,7 @@ class LabelAssign:
             username = random.choice(self.reviewers)  # allot to random user
             redis_client.set('hooky_last_assigned_reviwer', username)
             if isinstance(pull_request, PullRequest):
-                pull_request.body += '\n\nprimary-reviewer:{}'.format(username)
+                pull_request.body += f'\n\nprimary-reviewer:{username}'
             return pull_request
 
     def request_review(self) -> tuple[bool, str]:
