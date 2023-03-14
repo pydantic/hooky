@@ -200,8 +200,9 @@ class LabelAssign:
         except RuntimeError as e:
             return False, str(e)
 
-        self.gh_pr.add_to_assignees(reviewer)
-        self.gh_pr.remove_from_assignees(self.author)
+        if reviewer != self.author:
+            self.gh_pr.remove_from_assignees(self.author)
+            self.gh_pr.add_to_assignees(reviewer)
 
         return (
             True,
@@ -246,9 +247,12 @@ class LabelAssign:
         # reviewer not found in the PR body, choose a reviewer by round-robin
         key = f'reviewer:{self.repo_fullname}'
         with redis.from_url(self.settings.redis_dsn) as redis_client:
-            # we can deal with the error when reviewer index exceeds 2**64, when it happens!
-            # `-1` so we start from the 0th element, mostly to make tests clearer
             reviewer_index = redis_client.incr(key) - 1
+            # so that key never hits 2**64 and causes an error
+            if reviewer_index >= self.settings.reviewer_index_multiple * len(self.reviewers):
+                reviewer_index = 0
+                redis_client.set(key, '1')
+
             reviewer = self.get_reviewer(reviewer_index)
             if reviewer == self.author:
                 # if the reviewer is the author, choose the next reviewer

@@ -58,15 +58,17 @@ def test_assign_author(settings, gh_pr, gh_repo):
         True,
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
     )
-    assert gh_pr.__history__ == {
-        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
-        'get_issue_comment.create_reaction': "Call('+1')",
-        'add_to_labels': "Call('awaiting author revision')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'remove_from_labels': "Call('ready for review')",
-        'add_to_assignees': "Call('user1')",
-        'remove_from_assignees': "Call('user2')",
-    }
+    # insert_assert(gh_pr.__history__)
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('awaiting author revision')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "remove_from_labels: Call('ready for review')",
+        "add_to_assignees: Call('user1')",
+        "remove_from_assignees: Call('user2')",
+    ]
 
 
 def test_assign_author_remove_label(settings, gh_pr, gh_repo):
@@ -84,17 +86,19 @@ def test_assign_author_remove_label(settings, gh_pr, gh_repo):
         True,
         'Author user1 successfully assigned to PR, "awaiting author revision" label added',
     )
-    assert gh_pr.__history__ == {
-        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
-        'get_issue_comment.create_reaction': "Call('+1')",
-        'add_to_labels': "Call('awaiting author revision')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'remove_from_labels': "Call('ready for review')",
-        'add_to_assignees': "Call('user1')",
-    }
+    # insert_assert(gh_pr.__history__)
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('awaiting author revision')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "remove_from_labels: Call('ready for review')",
+        "add_to_assignees: Call('user1')",
+    ]
 
 
-def test_author_request_review(settings, gh_pr, gh_repo, flush_redis):
+def test_author_request_review(settings, gh_pr, gh_repo, redis_cli):
     la = LabelAssign(
         gh_pr,
         gh_repo,
@@ -108,15 +112,17 @@ def test_author_request_review(settings, gh_pr, gh_repo, flush_redis):
     acted, msg = la.request_review()
     assert acted, msg
     assert msg == '@user1 successfully assigned to PR as reviewer, "ready for review" label added'
-    assert gh_pr.__history__ == {
-        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
-        'get_issue_comment.create_reaction': "Call('+1')",
-        'add_to_labels': "Call('ready for review')",
-        'edit': "Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'add_to_assignees': "Call('user1')",
-        'remove_from_assignees': "Call('the_author')",
-    }
+    # insert_assert(gh_pr.__history__)
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('ready for review')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "edit: Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
+        "remove_from_assignees: Call('the_author')",
+        "add_to_assignees: Call('user1')",
+    ]
 
     la2 = LabelAssign(
         gh_pr,
@@ -133,7 +139,7 @@ def test_author_request_review(settings, gh_pr, gh_repo, flush_redis):
     assert msg == '@user2 successfully assigned to PR as reviewer, "ready for review" label added'
 
 
-def test_request_review_magic_comment(settings, gh_repo, flush_redis):
+def test_request_review_magic_comment(settings, gh_repo, redis_cli):
     gh_pr = AttrBlock(
         'GhPr',
         get_issue_comment=CallableBlock(
@@ -160,17 +166,19 @@ def test_request_review_magic_comment(settings, gh_repo, flush_redis):
     acted, msg = la.request_review()
     assert acted, msg
     assert msg == '@user2 successfully assigned to PR as reviewer, "ready for review" label added'
-    assert gh_pr.__history__ == {
-        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
-        'get_issue_comment.create_reaction': "Call('+1')",
-        'add_to_labels': "Call('ready for review')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'add_to_assignees': "Call('user2')",
-        'remove_from_assignees': "Call('the_author')",
-    }
+    # insert_assert(gh_pr.__history__)
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('ready for review')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "remove_from_assignees: Call('the_author')",
+        "add_to_assignees: Call('user2')",
+    ]
 
 
-def test_request_review_bad_magic_comment(settings, gh_repo, flush_redis):
+def test_request_review_bad_magic_comment(settings, gh_repo, redis_cli):
     gh_pr = AttrBlock(
         'GhPr',
         get_issue_comment=CallableBlock(
@@ -199,7 +207,32 @@ def test_request_review_bad_magic_comment(settings, gh_repo, flush_redis):
     assert msg == 'Selected reviewer @other-person not in reviewers.'
 
 
-def test_request_review_from_review(settings, gh_pr, gh_repo, flush_redis):
+def test_request_review_one_reviewer(settings, gh_pr, gh_repo, redis_cli):
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='user1'), id=123456),
+        'user1',
+        'org/repo',
+        RepoConfig(reviewers=['user1']),
+        settings,
+    )
+    acted, msg = la.request_review()
+    assert acted, msg
+    assert msg == '@user1 successfully assigned to PR as reviewer, "ready for review" label added'
+    # insert_assert(gh_pr.__history__)
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('ready for review')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "edit: Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
+    ]
+
+
+def test_request_review_from_review(settings, gh_pr, gh_repo, redis_cli):
     la = LabelAssign(
         gh_pr,
         gh_repo,
@@ -213,13 +246,14 @@ def test_request_review_from_review(settings, gh_pr, gh_repo, flush_redis):
     acted, msg = la.request_review()
     assert acted
     assert msg == '@user1 successfully assigned to PR as reviewer, "ready for review" label added'
-    assert gh_pr.__history__ == {
-        'add_to_labels': "Call('ready for review')",
-        'edit': "Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'add_to_assignees': "Call('user1')",
-        'remove_from_assignees': "Call('other')",
-    }
+    assert gh_pr.__history__ == [
+        "add_to_labels: Call('ready for review')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "edit: Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
+        "remove_from_assignees: Call('other')",
+        "add_to_assignees: Call('user1')",
+    ]
 
 
 def test_request_review_not_author(settings, gh_pr, gh_repo):
@@ -250,7 +284,7 @@ def test_assign_author_not_reviewer(settings, gh_pr, gh_repo):
         settings,
     )
     assert la.assign_author() == (False, 'Only reviewers "user1", "user2" can assign the author, not "other"')
-    assert gh_pr.__history__ == {}
+    assert gh_pr.__history__ == []
 
 
 def test_assign_author_no_reviewers(settings, gh_pr, gh_repo):
@@ -265,11 +299,11 @@ def test_assign_author_no_reviewers(settings, gh_pr, gh_repo):
         settings,
     )
     assert la.assign_author() == (False, 'Only reviewers (no reviewers configured) can assign the author, not "other"')
-    assert gh_repo.__history__ == {
-        'get_collaborators': "Call() -> IterBlock('collaborators')",
-        'get_collaborators.collaborators': 'Iter()',
-    }
-    assert gh_pr.__history__ == {}
+    assert gh_repo.__history__ == [
+        "get_collaborators: Call() -> IterBlock('collaborators')",
+        'get_collaborators.collaborators: Iter()',
+    ]
+    assert gh_pr.__history__ == []
 
 
 def test_get_collaborators(settings, gh_pr):
@@ -295,24 +329,26 @@ def test_get_collaborators(settings, gh_pr):
     act, msg = la.assign_author()
     assert act, msg
     assert msg == 'Author user1 successfully assigned to PR, "awaiting author revision" label added'
-    assert gh_repo.__history__ == {
-        'get_collaborators': (
-            "Call() -> IterBlock('collaborators', AttrBlock('Collaborator', login='colab1'), "
+    assert gh_repo.__history__ == [
+        (
+            "get_collaborators: Call() -> IterBlock('collaborators', AttrBlock('Collaborator', login='colab1'), "
             "AttrBlock('Collaborator', login='colab2'))"
         ),
-        'get_collaborators.collaborators': (
-            "Iter(AttrBlock('Collaborator', login='colab1'), AttrBlock('Collaborator', login='colab2'))"
+        (
+            "get_collaborators.collaborators: Iter(AttrBlock('Collaborator', login='colab1'),"
+            " AttrBlock('Collaborator', login='colab2'))"
         ),
-    }
-    assert gh_pr.__history__ == {
-        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
-        'get_issue_comment.create_reaction': "Call('+1')",
-        'add_to_labels': "Call('awaiting author revision')",
-        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
-        'remove_from_labels': "Call('ready for review')",
-        'add_to_assignees': "Call('user1')",
-        'remove_from_assignees': "Call('colab1', 'colab2')",
-    }
+    ]
+    assert gh_pr.__history__ == [
+        "get_issue_comment: Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        "get_issue_comment.create_reaction: Call('+1')",
+        "add_to_labels: Call('awaiting author revision')",
+        "get_labels: Call() -> IterBlock('get_labels', AttrBlock('labels', name='ready for review'))",
+        "get_labels: Iter(AttrBlock('labels', name='ready for review'))",
+        "remove_from_labels: Call('ready for review')",
+        "add_to_assignees: Call('user1')",
+        "remove_from_assignees: Call('colab1', 'colab2')",
+    ]
 
 
 def test_change_not_open(settings):
@@ -497,3 +533,27 @@ def test_find_change_file_ok(files, expected):
         assert m is None
     else:
         assert m.groups() == expected
+
+
+def test_many_reviews(settings, gh_pr, gh_repo, redis_cli):
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='the_author'), id=123456),
+        'the_author',
+        'org/repo',
+        RepoConfig(reviewers=['user1']),
+        settings,
+    )
+
+    key = 'reviewer:org/repo'
+    assert redis_cli.get(key) is None
+
+    for i in range(1, 11):
+        assert la.find_reviewer() == 'user1'
+        assert redis_cli.get(key) == b'%d' % i
+
+    assert redis_cli.get(key) == b'10'
+    assert la.find_reviewer() == 'user1'
+    assert redis_cli.get(key) == b'1'

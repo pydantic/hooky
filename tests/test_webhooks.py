@@ -70,8 +70,8 @@ def test_please_review(dummy_server: DummyServer, client: Client):
         'POST /repos/user1/repo1/issues/123/labels > 200',
         'GET /repos/user1/repo1/issues/123/labels > 200',
         'PATCH /repos/user1/repo1/pulls/123 > 200',
-        'POST /repos/user1/repo1/issues/123/assignees > 200',
         'DELETE /repos/user1/repo1/issues/123/assignees > 200',
+        'POST /repos/user1/repo1/issues/123/assignees > 200',
     ]
 
 
@@ -106,8 +106,8 @@ def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
         'POST /repos/foobar/no_reviewers/issues/123/labels > 200',
         'GET /repos/foobar/no_reviewers/issues/123/labels > 200',
         'PATCH /repos/foobar/no_reviewers/pulls/123 > 200',
-        'POST /repos/foobar/no_reviewers/issues/123/assignees > 200',
         'DELETE /repos/foobar/no_reviewers/issues/123/assignees > 200',
+        'POST /repos/foobar/no_reviewers/issues/123/assignees > 200',
     ]
 
 
