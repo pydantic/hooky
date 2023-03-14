@@ -90,7 +90,7 @@ class CustomPr:
     base: FakeBase
 
 
-def test_cached_default(settings, flush_redis, capsys):
+def test_cached_default(settings, redis_cli, capsys):
     repo = FakeRepo({'pyproject.toml:main': None, 'pyproject.toml:NotSet': valid_config})
     pr = CustomPr(base=FakeBase(repo=repo, ref='main'))
     config = RepoConfig.load(pr, settings)

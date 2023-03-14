@@ -98,7 +98,7 @@ def test_assign_author_remove_label(settings, gh_pr, gh_repo):
     ]
 
 
-def test_author_request_review(settings, gh_pr, gh_repo, flush_redis):
+def test_author_request_review(settings, gh_pr, gh_repo, redis_cli):
     la = LabelAssign(
         gh_pr,
         gh_repo,
@@ -139,7 +139,7 @@ def test_author_request_review(settings, gh_pr, gh_repo, flush_redis):
     assert msg == '@user2 successfully assigned to PR as reviewer, "ready for review" label added'
 
 
-def test_request_review_magic_comment(settings, gh_repo, flush_redis):
+def test_request_review_magic_comment(settings, gh_repo, redis_cli):
     gh_pr = AttrBlock(
         'GhPr',
         get_issue_comment=CallableBlock(
@@ -178,7 +178,7 @@ def test_request_review_magic_comment(settings, gh_repo, flush_redis):
     ]
 
 
-def test_request_review_bad_magic_comment(settings, gh_repo, flush_redis):
+def test_request_review_bad_magic_comment(settings, gh_repo, redis_cli):
     gh_pr = AttrBlock(
         'GhPr',
         get_issue_comment=CallableBlock(
@@ -207,7 +207,7 @@ def test_request_review_bad_magic_comment(settings, gh_repo, flush_redis):
     assert msg == 'Selected reviewer @other-person not in reviewers.'
 
 
-def test_request_review_one_reviewer(settings, gh_pr, gh_repo, flush_redis):
+def test_request_review_one_reviewer(settings, gh_pr, gh_repo, redis_cli):
     la = LabelAssign(
         gh_pr,
         gh_repo,
@@ -232,7 +232,7 @@ def test_request_review_one_reviewer(settings, gh_pr, gh_repo, flush_redis):
     ]
 
 
-def test_request_review_from_review(settings, gh_pr, gh_repo, flush_redis):
+def test_request_review_from_review(settings, gh_pr, gh_repo, redis_cli):
     la = LabelAssign(
         gh_pr,
         gh_repo,
@@ -533,3 +533,27 @@ def test_find_change_file_ok(files, expected):
         assert m is None
     else:
         assert m.groups() == expected
+
+
+def test_many_reviews(settings, gh_pr, gh_repo, redis_cli):
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='the_author'), id=123456),
+        'the_author',
+        'org/repo',
+        RepoConfig(reviewers=['user1']),
+        settings,
+    )
+
+    key = 'reviewer:org/repo'
+    assert redis_cli.get(key) is None
+
+    for i in range(1, 11):
+        assert la.find_reviewer() == 'user1'
+        assert redis_cli.get(key) == b'%d' % i
+
+    assert redis_cli.get(key) == b'10'
+    assert la.find_reviewer() == 'user1'
+    assert redis_cli.get(key) == b'1'

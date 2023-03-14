@@ -23,6 +23,7 @@ def fix_settings():
         webhook_secret=b'webhook_secret',
         marketplace_webhook_secret=b'marketplace_webhook_secret',
         github_app_secret_key='tests/test_github_app_secret_key.pem',
+        reviewer_index_multiple=10,
     )
 
 
@@ -36,10 +37,11 @@ def fix_loop(settings):
     return loop
 
 
-@pytest.fixture(name='flush_redis')
-def fix_flush_redis(settings):
+@pytest.fixture(name='redis_cli')
+def fix_redis_cli(settings):
     with redis.from_url(settings.redis_dsn) as redis_client:
         redis_client.flushdb()
+        yield redis_client
 
 
 class Client(TestClient):
@@ -62,7 +64,7 @@ def fix_client(settings: Settings, loop):
 
 
 @pytest.fixture(name='dummy_server')
-def _fix_dummy_server(loop, flush_redis):
+def _fix_dummy_server(loop, redis_cli):
     from src import github_auth
 
     loop = asyncio.get_event_loop()
