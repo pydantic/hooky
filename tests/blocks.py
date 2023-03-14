@@ -41,7 +41,7 @@ class Block(ABC):
 
     @property
     def __history__(self):
-        return {h.path_str(): h.display() for h in self.__raw_history__}
+        return [f'{h.path_str()}: {h.display()}' for h in self.__raw_history__]
 
     @property
     def __name__(self) -> str:
