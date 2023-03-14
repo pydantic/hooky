@@ -199,6 +199,29 @@ def test_request_review_bad_magic_comment(settings, gh_repo, flush_redis):
     assert msg == 'Selected reviewer @other-person not in reviewers.'
 
 
+def test_request_review_one_reviewer(settings, gh_pr, gh_repo, flush_redis):
+    la = LabelAssign(
+        gh_pr,
+        gh_repo,
+        'comment',
+        Comment(body='x', user=User(login='user1'), id=123456),
+        'user1',
+        'org/repo',
+        RepoConfig(reviewers=['user1']),
+        settings,
+    )
+    acted, msg = la.request_review()
+    assert acted, msg
+    assert msg == '@user1 successfully assigned to PR as reviewer, "ready for review" label added'
+    assert gh_pr.__history__ == {
+        'get_issue_comment': "Call(123456) -> AttrBlock('Comment', create_reaction=CallableBlock('create_reaction'))",
+        'get_issue_comment.create_reaction': "Call('+1')",
+        'add_to_labels': "Call('ready for review')",
+        'edit': "Call(body='this is the pr body\\n\\nSelected Reviewer: @user1')",
+        'get_labels': "Iter(AttrBlock('labels', name='ready for review'))",
+    }
+
+
 def test_request_review_from_review(settings, gh_pr, gh_repo, flush_redis):
     la = LabelAssign(
         gh_pr,
