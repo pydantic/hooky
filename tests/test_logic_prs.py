@@ -5,17 +5,8 @@ from dataclasses import dataclass
 import pytest
 from github import GithubException
 
-from src.logic import (
-    Comment,
-    LabelAssign,
-    PullRequest,
-    PullRequestUpdateEvent,
-    Repository,
-    User,
-    check_change_file,
-    check_change_file_content,
-    find_change_file,
-)
+from src.logic.models import Comment, PullRequest, PullRequestUpdateEvent, Repository, User
+from src.logic.prs import LabelAssign, check_change_file, check_change_file_content, find_change_file
 from src.repo_config import RepoConfig
 
 from .blocks import AttrBlock, CallableBlock, IterBlock
@@ -411,7 +402,7 @@ def test_change_no_change_comment(settings, mocker):
         repository=Repository(full_name='user/repo', owner=User(login='user1')),
     )
     gh = build_gh()
-    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
+    mocker.patch('src.logic.prs.get_repo_client', return_value=FakeGhContext(gh))
     act, msg = check_change_file(e, settings)
     assert act, msg
     assert msg == (
@@ -438,7 +429,7 @@ def test_change_no_change_file(settings, mocker):
         repository=Repository(full_name='user/repo', owner=User(login='user1')),
     )
     gh = build_gh()
-    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
+    mocker.patch('src.logic.prs.get_repo_client', return_value=FakeGhContext(gh))
     assert check_change_file(e, settings) == (
         True,
         '[Check change file] status set to "error" with description "No change file found"',
@@ -457,7 +448,7 @@ def test_change_file_not_required(settings, mocker):
         'get_contents', AttrBlock('File', status='added', content=config_change_not_required, filename='.hooky.toml')
     )
     gh = build_gh(get_contents=get_contents)
-    mocker.patch('src.logic.get_repo_client', return_value=FakeGhContext(gh))
+    mocker.patch('src.logic.prs.get_repo_client', return_value=FakeGhContext(gh))
     act, msg = check_change_file(e, settings)
     assert not act
     assert msg == '[Check change file] change file not required'

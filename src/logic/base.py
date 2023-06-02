@@ -1,0 +1,42 @@
+from textwrap import indent
+
+from pydantic import parse_raw_as
+
+from ..settings import Settings, log
+from .models import Event, IssueEvent, PullRequestReviewEvent, PullRequestUpdateEvent
+from .prs import check_change_file, label_assign
+
+__all__ = ('process_event',)
+
+
+def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
+    try:
+        event = parse_raw_as(Event, request_body)  # type: ignore
+    except ValueError as e:
+        log(indent(f'{type(e).__name__}: {e}', '  '))
+        return False, 'Error parsing request body'
+
+    if isinstance(event, IssueEvent):
+        if event.issue.pull_request is None:
+            return False, 'action only applies to Pull Requests, not Issues'
+
+        return label_assign(
+            event=event,
+            event_type='comment',
+            pr=event.issue,
+            comment=event.comment,
+            force_assign_author=False,
+            settings=settings,
+        )
+    elif isinstance(event, PullRequestReviewEvent):
+        return label_assign(
+            event=event,
+            event_type='review',
+            pr=event.pull_request,
+            comment=event.review,
+            force_assign_author=event.review.state == 'changes_requested',
+            settings=settings,
+        )
+    else:
+        assert isinstance(event, PullRequestUpdateEvent), 'unknown event type'
+        return check_change_file(event, settings)
