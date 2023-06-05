@@ -1,108 +1,13 @@
 import re
-from textwrap import indent
 from typing import Literal
 
 import redis
 from github import PullRequest as GhPullRequest, Repository as GhRepository
-from pydantic import BaseModel, parse_raw_as
 
-from .github_auth import get_repo_client
-from .repo_config import RepoConfig
-from .settings import Settings, log
-
-__all__ = ('process_event',)
-
-
-class User(BaseModel):
-    login: str
-
-
-class Comment(BaseModel):
-    body: str
-    user: User
-    id: int
-
-
-class IssuePullRequest(BaseModel):
-    url: str
-
-
-class Issue(BaseModel):
-    pull_request: IssuePullRequest | None = None
-    user: User
-    number: int
-
-
-class Repository(BaseModel):
-    full_name: str
-    owner: User
-
-
-class IssueEvent(BaseModel):
-    comment: Comment
-    issue: Issue
-    repository: Repository
-
-
-class Review(BaseModel):
-    body: str | None
-    user: User
-    state: str
-
-
-class PullRequest(BaseModel):
-    number: int
-    user: User
-    state: str
-    body: str | None
-
-
-class PullRequestReviewEvent(BaseModel):
-    review: Review
-    pull_request: PullRequest
-    repository: Repository
-
-
-class PullRequestUpdateEvent(BaseModel):
-    action: str
-    pull_request: PullRequest
-    repository: Repository
-
-
-Event = IssueEvent | PullRequestReviewEvent | PullRequestUpdateEvent
-
-
-def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
-    try:
-        event = parse_raw_as(Event, request_body)  # type: ignore
-    except ValueError as e:
-        log(indent(f'{type(e).__name__}: {e}', '  '))
-        return False, 'Error parsing request body'
-
-    if isinstance(event, IssueEvent):
-        if event.issue.pull_request is None:
-            return False, 'action only applies to Pull Requests, not Issues'
-
-        return label_assign(
-            event=event,
-            event_type='comment',
-            pr=event.issue,
-            comment=event.comment,
-            force_assign_author=False,
-            settings=settings,
-        )
-    elif isinstance(event, PullRequestReviewEvent):
-        return label_assign(
-            event=event,
-            event_type='review',
-            pr=event.pull_request,
-            comment=event.review,
-            force_assign_author=event.review.state == 'changes_requested',
-            settings=settings,
-        )
-    else:
-        assert isinstance(event, PullRequestUpdateEvent), 'unknown event type'
-        return check_change_file(event, settings)
+from ..github_auth import get_repo_client
+from ..repo_config import RepoConfig
+from ..settings import Settings, log
+from .models import Comment, Event, Issue, PullRequest, PullRequestUpdateEvent, Review
 
 
 def label_assign(
