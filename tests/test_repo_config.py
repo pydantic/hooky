@@ -93,7 +93,7 @@ class CustomPr:
 def test_cached_default(settings, redis_cli, capsys):
     repo = FakeRepo({'pyproject.toml:main': None, 'pyproject.toml:NotSet': valid_config})
     pr = CustomPr(base=FakeBase(repo=repo, ref='main'))
-    config = RepoConfig.load(pr, settings)
+    config = RepoConfig.load(pr=pr, settings=settings)
     assert config.reviewers == ['foobar', 'barfoo']
     assert repo.__calls__ == [
         '.hooky.toml:main -> error',
@@ -101,7 +101,7 @@ def test_cached_default(settings, redis_cli, capsys):
         '.hooky.toml:NotSet -> error',
         'pyproject.toml:NotSet -> success',
     ]
-    config = RepoConfig.load(pr, settings)
+    config = RepoConfig.load(pr=pr, settings=settings)
     assert config.reviewers == ['foobar', 'barfoo']
     assert repo.__calls__ == [
         '.hooky.toml:main -> error',

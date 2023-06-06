@@ -3,7 +3,8 @@ from time import time
 import jwt
 import redis
 from cryptography.hazmat.backends import default_backend
-from github import Github, Repository as GhRepository
+from github import Github
+from github.Repository import Repository as GhRepository
 from requests import Session
 
 from .settings import Settings, log

@@ -3,8 +3,8 @@ from textwrap import indent
 from pydantic import parse_raw_as
 
 from ..settings import Settings, log
+from . import issues, prs
 from .models import Event, IssueEvent, PullRequestReviewEvent, PullRequestUpdateEvent
-from .prs import check_change_file, label_assign
 
 __all__ = ('process_event',)
 
@@ -18,9 +18,9 @@ def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
 
     if isinstance(event, IssueEvent):
         if event.issue.pull_request is None:
-            return False, 'action only applies to Pull Requests, not Issues'
+            return issues.process_issue(event=event, settings=settings)
 
-        return label_assign(
+        return prs.label_assign(
             event=event,
             event_type='comment',
             pr=event.issue,
@@ -29,7 +29,7 @@ def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
             settings=settings,
         )
     elif isinstance(event, PullRequestReviewEvent):
-        return label_assign(
+        return prs.label_assign(
             event=event,
             event_type='review',
             pr=event.pull_request,
@@ -39,4 +39,4 @@ def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
         )
     else:
         assert isinstance(event, PullRequestUpdateEvent), 'unknown event type'
-        return check_change_file(event, settings)
+        return prs.check_change_file(event, settings)

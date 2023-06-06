@@ -3,7 +3,10 @@ from textwrap import indent
 
 import redis
 import rtoml
-from github import GithubException, PullRequest as GhPullRequest, Repository as GhRepository
+from github import GithubException
+from github.Issue import Issue as GhIssue
+from github.PullRequest import PullRequest as GhPullRequest
+from github.Repository import Repository as GhRepository
 from pydantic import BaseModel, ValidationError
 
 from .settings import Settings, log
@@ -19,28 +22,36 @@ class RepoConfig(BaseModel):
     awaiting_review_label: str = 'ready for review'
     no_change_file: str = 'skip change file check'
     require_change_file: bool = True
+    assignees: list[str] = []
+    unconfirmed_label: str = 'unconfirmed'
 
     @classmethod
-    def load(cls, pr: GhPullRequest, settings: Settings) -> 'RepoConfig':
-        repo = pr.base.repo
+    def load(cls, *, pr: GhPullRequest | None, issue: GhIssue | None, settings: Settings) -> 'RepoConfig':
+        assert (pr is None or issue is None) and pr != issue
+
+        repo = pr.base.repo if pr is not None else issue.repository
+
         with redis.from_url(settings.redis_dsn) as redis_client:
-            pr_base_ref = pr.base.ref
-            pr_cache_key = f'config_{repo.full_name}_{pr_base_ref}'
+            repo_ref = pr.base.ref if pr is not None else repo.default_branch
             repo_cache_key = f'config_{repo.full_name}'
-            if pr_config := redis_client.get(pr_cache_key):
-                return RepoConfig.parse_raw(pr_config)
-            elif pr_config := cls._load_raw(repo, ref=pr_base_ref):
-                redis_client.setex(pr_cache_key, settings.config_cache_timeout, pr_config.json())
-                return pr_config
-            elif repo_config := redis_client.get(repo_cache_key):
+
+            if pr is not None:
+                pr_cache_key = f'{repo_cache_key}_{repo_ref}'
+                if pr_config := redis_client.get(pr_cache_key):
+                    return RepoConfig.parse_raw(pr_config)
+                if pr_config := cls._load_raw(repo, ref=repo_ref):
+                    redis_client.setex(pr_cache_key, settings.config_cache_timeout, pr_config.json())
+                    return pr_config
+
+            if repo_config := redis_client.get(repo_cache_key):
                 return RepoConfig.parse_raw(repo_config)
-            elif repo_config := cls._load_raw(repo):
+            if repo_config := cls._load_raw(repo):
                 redis_client.setex(repo_cache_key, settings.config_cache_timeout, repo_config.json())
                 return repo_config
-            else:
-                default_config = cls()
-                redis_client.setex(repo_cache_key, settings.config_cache_timeout, default_config.json())
-                return default_config
+
+            default_config = cls()
+            redis_client.setex(repo_cache_key, settings.config_cache_timeout, default_config.json())
+            return default_config
 
     @classmethod
     def _load_raw(cls, repo: 'GhRepository', *, ref: str | None = None) -> 'RepoConfig | None':

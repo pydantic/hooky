@@ -2,7 +2,8 @@ import re
 from typing import Literal
 
 import redis
-from github import PullRequest as GhPullRequest, Repository as GhRepository
+from github.PullRequest import PullRequest as GhPullRequest
+from github.Repository import Repository as GhRepository
 
 from ..github_auth import get_repo_client
 from ..repo_config import RepoConfig
@@ -25,7 +26,7 @@ def label_assign(
 
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_pr = gh_repo.get_pull(pr.number)
-        config = RepoConfig.load(gh_pr, settings)
+        config = RepoConfig.load(pr=gh_pr, settings=settings)
 
         log(f'{comment.user.login} ({event_type}): {body!r}')
 
@@ -154,7 +155,7 @@ class LabelAssign:
         with redis.from_url(self.settings.redis_dsn) as redis_client:
             reviewer_index = redis_client.incr(key) - 1
             # so that key never hits 2**64 and causes an error
-            if reviewer_index >= self.settings.reviewer_index_multiple * len(self.reviewers):
+            if reviewer_index >= self.settings.index_multiple * len(self.reviewers):
                 reviewer_index = 0
                 redis_client.set(key, '1')
 
@@ -191,7 +192,7 @@ def check_change_file(event: PullRequestUpdateEvent, settings: Settings) -> tupl
     log(f'[Check change file] action={event.action} pull-request=#{event.pull_request.number}')
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_pr = gh_repo.get_pull(event.pull_request.number)
-        config = RepoConfig.load(gh_pr, settings)
+        config = RepoConfig.load(pr=gh_pr, settings=settings)
         if not config.require_change_file:
             return False, '[Check change file] change file not required'
 
