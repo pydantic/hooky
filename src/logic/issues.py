@@ -32,7 +32,7 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
     - reassign from the author back to contributor after any author's comment
     """
     if event.action not in iter(IssueAction):
-        return False, f'Unapplicable issue action "{event.action}"'
+        return False, f'Ignored issue action "{event.action}"'
 
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_issue = gh_repo.get_issue(event.issue.number)
