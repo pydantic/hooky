@@ -23,7 +23,7 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
     """Processes an issue in the repo
 
     Performs following actions:
-    - assigns new issues and reopen to a next person in the assignees list
+    - assigns new/reopened issues to the next person in the assignees list
 
     TODO:
     - assign reopened issue to the assignee selected before
