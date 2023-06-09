@@ -32,7 +32,7 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
     - reassign from the author back to contributor after any author's comment
     """
     if event.action not in iter(IssueAction):
-        return False, f'Ignored issue action "{event.action}"'
+        return False, f'Ignored action "{event.action}"'
 
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_issue = gh_repo.get_issue(event.issue.number)
@@ -87,9 +87,9 @@ class LabelAssign:
             assignee_index = redis_client.incr(key) - 1
 
             # so that key never hits 2**64 and causes an error
-            if assignee_index >= self.settings.index_multiple * assignees_count:
+            if assignee_index >= 4_294_967_296:  # 2**32
                 assignee_index %= assignees_count
-                redis_client.set(key, assignee_index)
+                redis_client.set(key, assignee_index + 1)
 
             assignee = self.assignees[assignee_index % assignees_count]
 

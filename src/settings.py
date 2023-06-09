@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     marketplace_webhook_secret: SecretBytes = None
     redis_dsn: RedisDsn = 'redis://localhost:6379'
     config_cache_timeout: int = 600
-    index_multiple: int = 1000
+    reviewer_index_multiple: int = 1000
 
     @classmethod
     def load_cached(cls, **kwargs) -> 'Settings':

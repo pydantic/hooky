@@ -155,9 +155,9 @@ class LabelAssign:
         with redis.from_url(self.settings.redis_dsn) as redis_client:
             reviewer_index = redis_client.incr(key) - 1
             # so that key never hits 2**64 and causes an error
-            if reviewer_index >= self.settings.index_multiple * len(self.reviewers):
-                reviewer_index = 0
-                redis_client.set(key, '1')
+            if reviewer_index >= self.settings.reviewer_index_multiple * len(self.reviewers):
+                reviewer_index %= len(self.reviewers)
+                redis_client.set(key, reviewer_index + 1)
 
             reviewer = self.get_reviewer(reviewer_index)
             if reviewer == self.author:

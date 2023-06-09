@@ -62,6 +62,8 @@ awaiting_update_label = 'ham'
 awaiting_review_label = 'fries'
 no_change_file = 'fake'
 require_change_file = false
+assignees = ['user_a', 'user_b']
+unconfirmed_label = 'unconfirmed label'
 """
 
 
@@ -76,6 +78,8 @@ def test_get_config_valid():
         'awaiting_review_label': 'fries',
         'no_change_file': 'fake',
         'require_change_file': False,
+        'assignees': ['user_a', 'user_b'],
+        'unconfirmed_label': 'unconfirmed label',
     }
 
 

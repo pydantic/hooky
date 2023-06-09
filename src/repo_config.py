@@ -26,7 +26,7 @@ class RepoConfig(BaseModel):
     unconfirmed_label: str = 'unconfirmed'
 
     @classmethod
-    def load(cls, *, pr: GhPullRequest | None, issue: GhIssue | None, settings: Settings) -> 'RepoConfig':
+    def load(cls, *, pr: GhPullRequest | None = None, issue: GhIssue | None = None, settings: Settings) -> 'RepoConfig':
         assert (pr is None or issue is None) and pr != issue
 
         repo = pr.base.repo if pr is not None else issue.repository
