@@ -1,10 +1,11 @@
+import typing
 from time import time
 
 import jwt
 import redis
 from cryptography.hazmat.backends import default_backend
-from github import Github
-from github.Repository import Repository as GhRepository
+from cryptography.hazmat.backends.openssl.backend import Backend as OpenSSLBackend
+from github import Github, Repository as GhRepository
 from requests import Session
 
 from .settings import Settings, log
@@ -27,7 +28,7 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> 'GithubContext':
 
         pem_bytes = settings.github_app_secret_key.read_bytes()
 
-        private_key = default_backend().load_pem_private_key(pem_bytes, None)
+        private_key = typing.cast(OpenSSLBackend, default_backend()).load_pem_private_key(pem_bytes, None, False)
 
         now = int(time())
         payload = {'iat': now - 30, 'exp': now + 60, 'iss': settings.github_app_id}
