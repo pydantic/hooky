@@ -6,8 +6,7 @@ from typing import Any
 
 import pytest
 import redis
-from foxglove.test_server import create_dummy_server
-from foxglove.testing import TestClient
+from foxglove.testing import TestClient, create_dummy_server
 from requests import Response as RequestsResponse
 
 from src.settings import Settings

@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from foxglove.test_server import DummyServer
+from foxglove.testing import DummyServer
 
 from src.settings import Settings
 

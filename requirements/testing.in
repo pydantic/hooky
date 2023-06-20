@@ -1,7 +1,7 @@
 aiohttp
 coverage[toml]
 dirty-equals
-foxglove-web
+foxglove-web>=0.0.38
 pytest
 pytest-mock
 pytest-sugar

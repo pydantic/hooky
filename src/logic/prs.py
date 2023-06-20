@@ -8,6 +8,7 @@ from github.Repository import Repository as GhRepository
 from ..github_auth import get_repo_client
 from ..repo_config import RepoConfig
 from ..settings import Settings, log
+from .common import BaseActor
 from .models import Comment, Event, Issue, PullRequest, PullRequestUpdateEvent, Review
 
 
@@ -46,11 +47,9 @@ def label_assign(
     return action_taken, f'[Label and assign] {msg}'
 
 
-# for example "Selected Reviewer: @samuelcolvin"
-reviewer_regex = re.compile(r'selected[ -]reviewer:\s*@([\w\-]+)$', flags=re.I)
+class LabelAssign(BaseActor):
+    ROLE = 'Reviewer'
 
-
-class LabelAssign:
     def __init__(
         self,
         gh_pr: GhPullRequest,
@@ -141,7 +140,7 @@ class LabelAssign:
         and update the PR body to include the reviewer magic comment.
         """
         pr_body = self.gh_pr.body or ''
-        if m := reviewer_regex.search(pr_body):
+        if m := self._get_role_regex().search(pr_body):
             # found the magic comment, inspect it
             username = m.group(1)
             if username in self.reviewers:

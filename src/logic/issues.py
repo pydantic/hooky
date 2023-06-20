@@ -1,6 +1,4 @@
 import enum
-import re
-import typing
 from dataclasses import dataclass, field
 
 import redis
@@ -11,6 +9,7 @@ from ..github_auth import get_repo_client
 from ..repo_config import RepoConfig
 from ..settings import Settings, log
 from . import models
+from .common import BaseActor
 
 
 class IssueAction(str, enum.Enum):
@@ -56,9 +55,8 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
 
 
 @dataclass(kw_only=True)
-class LabelAssign:
-    # for example "Selected Assignee: @samuelcolvin"
-    ASSIGNEE_REGEX: typing.ClassVar[re.Pattern] = re.compile(r'selected[ -]assignee:\s*@([\w\-]+)$', flags=re.I)
+class LabelAssign(BaseActor):
+    ROLE = 'Assignee'
 
     gh_issue: GhIssue
     gh_repo: GhRepository
