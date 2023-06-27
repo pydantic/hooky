@@ -122,6 +122,40 @@ async def installation_access_token(request: Request) -> Response:
     return json_response({'token': 'foobar'})
 
 
+async def issue_details(request: Request) -> Response:
+    github_base_url = request.app['dynamic']['github_base_url']
+    org = request.match_info['org']
+    repo = request.match_info['repo']
+    issue_number = request.match_info['issue_number']
+    return json_response(
+        {
+            'url': f'{github_base_url}/repos/{org}/{repo}/issues/{issue_number}',
+            'repository_url': f'{github_base_url}/repos/{org}/{repo}',
+            'number': issue_number,
+            'state': 'open',
+            'title': 'Found a bug',
+            'body': "I'm having a problem with this.",
+            'user': {'login': 'user2', 'id': 2, 'type': 'User'},
+            'labels': [],
+            'assignee': None,
+            'assignees': [],
+            'milestone': None,
+            'locked': False,
+            'closed_at': None,
+            'created_at': '2011-04-22T13:33:48Z',
+            'updated_at': '2011-04-22T13:33:48Z',
+        }
+    )
+
+
+async def issue_patch(_request: Request) -> Response:
+    return json_response({'patch': 'foobar'})
+
+
+async def issue_reactions(_request: Request) -> Response:
+    return json_response({})
+
+
 async def catch_all(request: Request) -> Response:
     print(f'{request.method}: {request.path} 404')
     return Response(body=f'{request.method} {request.path} 404', status=404)
@@ -144,5 +178,8 @@ routes = [
     web.get('/repos/{org}/{repo}/collaborators', get_collaborators),
     web.get('/repos/{org}/{repo}/installation', repo_apps_installed),
     web.post('/app/installations/{installation}/access_tokens', installation_access_token),
+    web.get('/repos/{org}/{repo}/issues/{issue_number}', issue_details),
+    web.patch('/repos/{org}/{repo}/issues/{issue_number}', issue_patch),
+    web.post('/repos/{org}/{repo}/issues/{issue_number}/reactions', issue_reactions),
     web.route('*', '/{path:.*}', catch_all),
 ]
