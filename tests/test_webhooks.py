@@ -30,7 +30,7 @@ def test_auth_fails_wrong_header(client: Client, settings: Settings):
     assert r.json() == {'detail': 'Invalid signature'}
 
 
-def test_issue(client: Client):
+def test_created(client: Client):
     r = client.webhook(
         {
             'action': 'created',
@@ -214,4 +214,30 @@ def test_change_file(dummy_server: DummyServer, client: Client):
         'GET /repos/user1/repo1/pulls/123/files > 200',
         'GET /repos/user1/repo1/pulls/123/commits > 200',
         'POST /repos/user1/repo1/statuses/abc > 200',
+    ]
+
+
+def test_issue_opened(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
+        {
+            'action': 'opened',
+            'issue': {'user': {'login': 'user1'}, 'number': 123},
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
+    assert r.status_code == 200, r.text
+    assert r.text == '@user1 successfully assigned to issue, "unconfirmed" label added'
+    assert dummy_server.log == [
+        'GET /repos/user1/repo1/installation > 200',
+        'POST /app/installations/654321/access_tokens > 200',
+        'GET /repos/user1/repo1 > 200',
+        'GET /repos/user1/repo1/issues/123 > 200',
+        'GET /repos/user1/repo1 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml > 404',
+        'GET /repos/user1/repo1/contents/pyproject.toml > 200',
+        'GET /repos/user1/repo1/collaborators > 200',
+        'PATCH /repos/user1/repo1/issues/123 > 200',
+        'POST /repos/user1/repo1/issues/123/assignees > 200',
+        'POST /repos/user1/repo1/issues/123/labels > 200',
+        'POST /repos/user1/repo1/issues/123/reactions > 200',
     ]

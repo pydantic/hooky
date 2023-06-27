@@ -28,7 +28,7 @@ class Repository(BaseModel):
 
 class IssueEvent(BaseModel):
     action: str  # not defining a Literal here as we're not going to handle an exhaustive list of possible values
-    comment: Comment
+    comment: Comment | None = None
     issue: Issue
     repository: Repository
 

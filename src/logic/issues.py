@@ -49,9 +49,7 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
             settings=settings,
         )
 
-        label_assign.assign_new()
-
-    return True, ''
+        return label_assign.assign_new()
 
 
 @dataclass(kw_only=True)
