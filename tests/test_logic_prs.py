@@ -534,17 +534,34 @@ def test_many_reviews(settings, gh_pr, gh_repo, redis_cli):
         Comment(body='x', user=User(login='the_author'), id=123456),
         'the_author',
         'org/repo',
-        RepoConfig(reviewers=['user1']),
+        RepoConfig(reviewers=['user1', 'user2', 'user3', 'user4']),
         settings,
     )
 
     key = 'reviewer:org/repo'
     assert redis_cli.get(key) is None
 
-    for i in range(1, 11):
-        assert la.find_reviewer() == 'user1'
-        assert redis_cli.get(key) == b'%d' % i
+    assert la.find_reviewer() == 'user1'
+    assert la.find_reviewer() == 'user2'
+    assert la.find_reviewer() == 'user3'
+    assert la.find_reviewer() == 'user4'
+    assert la.find_reviewer() == 'user1'
+    assert la.find_reviewer() == 'user2'
 
-    assert redis_cli.get(key) == b'10'
+    redis_cli.set(key, 39)
+    assert la.find_reviewer() == 'user4'
+    assert redis_cli.get(key) == b'40'
+    assert la.find_reviewer() == 'user1'
+    assert redis_cli.get(key) == b'1'
+    assert la.find_reviewer() == 'user2'
+    assert la.find_reviewer() == 'user3'
+    assert la.find_reviewer() == 'user4'
+    assert la.find_reviewer() == 'user1'
+
+    redis_cli.set(key, 43)
+    assert la.find_reviewer() == 'user4'
+    assert redis_cli.get(key) == b'4'
+
+    redis_cli.set(key, 44)
     assert la.find_reviewer() == 'user1'
     assert redis_cli.get(key) == b'1'

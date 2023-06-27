@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from foxglove.test_server import DummyServer
+from foxglove.testing import DummyServer
 
 from src.settings import Settings
 
@@ -33,18 +33,20 @@ def test_auth_fails_wrong_header(client: Client, settings: Settings):
 def test_issue(client: Client):
     r = client.webhook(
         {
+            'action': 'created',
             'comment': {'body': 'Hello world', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {'user': {'login': 'user1'}, 'number': 123},
             'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
         }
     )
     assert r.status_code == 202, r.text
-    assert r.text == 'action only applies to Pull Requests, not Issues, no action taken'
+    assert r.text == 'Ignored action "created", no action taken'
 
 
 def test_please_review(dummy_server: DummyServer, client: Client):
     r = client.webhook(
         {
+            'action': 'created',
             'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
                 'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},
@@ -78,6 +80,7 @@ def test_please_review(dummy_server: DummyServer, client: Client):
 def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
     r = client.webhook(
         {
+            'action': 'created',
             'comment': {'body': 'Hello world, please review', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
                 'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},
@@ -114,6 +117,7 @@ def test_please_review_no_reviews(dummy_server: DummyServer, client: Client):
 def test_comment_please_update(dummy_server: DummyServer, client: Client):
     r = client.webhook(
         {
+            'action': 'created',
             'comment': {'body': 'Hello world, please update', 'user': {'login': 'user1'}, 'id': 123456},
             'issue': {
                 'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},

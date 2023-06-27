@@ -1,4 +1,4 @@
-from foxglove.test_server import DummyServer
+from foxglove.testing import DummyServer
 
 from src.settings import Settings
 
@@ -7,6 +7,7 @@ from .conftest import Client
 
 def test_config_cached(client: Client, settings: Settings, dummy_server: DummyServer):
     data = {
+        'action': 'created',
         'comment': {'body': 'Hello world', 'user': {'login': 'user1'}, 'id': 123456},
         'issue': {
             'pull_request': {'url': 'https://api.github.com/repos/user1/repo1/pulls/123'},

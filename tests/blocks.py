@@ -60,6 +60,9 @@ class HistoryGetAttr(History):
         return repr(self.attr)
 
 
+Undefined = object()
+
+
 class AttrBlock(Block):
     def __init__(self, __name: str, /, **attrs: Any):
         super().__init__()
@@ -67,7 +70,7 @@ class AttrBlock(Block):
         self._attrs = attrs
 
     def __getattr__(self, item) -> Any:
-        if attr := self._attrs.get(item):
+        if (attr := self._attrs.get(item, Undefined)) is not Undefined:
             path = self._path_append(item)
             if isinstance(attr, Block):
                 attr._set_history(path, self.__raw_history__)
