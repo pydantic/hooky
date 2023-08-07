@@ -4,6 +4,8 @@
 #
 #    pip-compile --config=pyproject.toml --output-file=requirements/testing.txt requirements/testing.in
 #
+aiodns==3.0.0
+    # via foxglove-web
 aiohttp==3.8.5
     # via -r requirements/testing.in
 aiosignal==1.3.1
@@ -22,6 +24,8 @@ asyncpg==0.28.0
     # via foxglove-web
 attrs==23.1.0
     # via aiohttp
+bcrypt==4.0.1
+    # via foxglove-web
 buildpg==0.4
     # via foxglove-web
 certifi==2023.7.22
@@ -29,6 +33,8 @@ certifi==2023.7.22
     #   httpcore
     #   httpx
     #   sentry-sdk
+cffi==1.15.1
+    # via pycares
 charset-normalizer==3.2.0
     # via aiohttp
 click==8.1.6
@@ -42,7 +48,7 @@ dirty-equals==0.6.0
     # via -r requirements/testing.in
 fastapi==0.101.0
     # via foxglove-web
-foxglove-web==0.0.38
+foxglove-web @ git+https://github.com/lig/foxglove@lig/upgrade-to-pydantic-v2
     # via -r requirements/testing.in
 frozenlist==1.4.0
     # via
@@ -77,12 +83,19 @@ packaging==23.1
     #   pytest-sugar
 pluggy==1.2.0
     # via pytest
+pycares==4.3.0
+    # via aiodns
+pycparser==2.21
+    # via cffi
 pydantic==2.1.1
     # via
     #   fastapi
     #   foxglove-web
+    #   pydantic-settings
 pydantic-core==2.4.0
     # via pydantic
+pydantic-settings==2.0.2
+    # via foxglove-web
 pytest==7.4.0
     # via
     #   -r requirements/testing.in
@@ -95,6 +108,8 @@ pytest-sugar==0.9.7
     # via -r requirements/testing.in
 pytest-timeout==2.1.0
     # via -r requirements/testing.in
+python-dotenv==1.0.0
+    # via pydantic-settings
 pytz==2023.3
     # via dirty-equals
 redis[hiredis]==4.6.0

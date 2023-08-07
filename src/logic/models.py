@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel
 
 
 class User(BaseModel):
@@ -34,7 +34,7 @@ class IssueEvent(BaseModel):
 
 
 class Review(BaseModel):
-    body: str | None
+    body: str | None = None
     user: User
     state: str
 
@@ -43,7 +43,7 @@ class PullRequest(BaseModel):
     number: int
     user: User
     state: str
-    body: str | None
+    body: str | None = None
 
 
 class PullRequestReviewEvent(BaseModel):
@@ -59,3 +59,7 @@ class PullRequestUpdateEvent(BaseModel):
 
 
 Event = IssueEvent | PullRequestReviewEvent | PullRequestUpdateEvent
+
+
+class EventParser(RootModel):
+    root: Event

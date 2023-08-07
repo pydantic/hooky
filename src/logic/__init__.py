@@ -1,17 +1,15 @@
 from textwrap import indent
 
-from pydantic import parse_raw_as
-
 from ..settings import Settings, log
 from . import issues, prs
-from .models import Event, IssueEvent, PullRequestReviewEvent, PullRequestUpdateEvent
+from .models import EventParser, IssueEvent, PullRequestReviewEvent, PullRequestUpdateEvent
 
 __all__ = ('process_event',)
 
 
 def process_event(request_body: bytes, settings: Settings) -> tuple[bool, str]:
     try:
-        event = parse_raw_as(Event, request_body)  # type: ignore
+        event = EventParser.model_validate_json(request_body).root
     except ValueError as e:
         log(indent(f'{type(e).__name__}: {e}', '  '))
         return False, 'Error parsing request body'

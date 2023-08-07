@@ -38,7 +38,7 @@ def fix_loop(settings):
 
 @pytest.fixture(name='redis_cli')
 def fix_redis_cli(settings):
-    with redis.from_url(settings.redis_dsn) as redis_client:
+    with redis.from_url(str(settings.redis_dsn)) as redis_client:
         redis_client.flushdb()
         yield redis_client
 
