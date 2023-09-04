@@ -21,6 +21,9 @@ class Settings(BaseSettings):
         """
         global _SETTINGS_CACHE
         if _SETTINGS_CACHE is None:
+            for str2bytes_kwarg in ('webhook_secret', 'marketplace_webhook_secret'):
+                if str2bytes_kwarg in kwargs and isinstance(kwargs[str2bytes_kwarg], str):
+                    kwargs[str2bytes_kwarg] = kwargs[str2bytes_kwarg].encode()
             _SETTINGS_CACHE = cls(**kwargs)
         return _SETTINGS_CACHE
 
