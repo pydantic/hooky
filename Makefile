@@ -9,7 +9,7 @@ install:
 
 .PHONY: format
 format:
-	pyupgrade --py310-plus --exit-zero-even-if-changed `find $(paths) -name "*.py" -type f`
+	pyupgrade --py311-plus --exit-zero-even-if-changed `find $(paths) -name "*.py" -type f`
 	isort $(paths)
 	black $(paths)
 

@@ -19,6 +19,6 @@ repos:
     language: system
   - id: pyupgrade
     name: Pyupgrade
-    entry: pyupgrade --py310-plus
+    entry: pyupgrade --py311-plus
     types: [python]
     language: system
