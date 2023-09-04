@@ -1,4 +1,4 @@
-from pydantic import FilePath, RedisDsn, SecretBytes, validator
+from pydantic import FilePath, RedisDsn, SecretBytes, field_validator
 from pydantic_settings import BaseSettings
 
 __all__ = 'Settings', 'log'
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
             _SETTINGS_CACHE = cls(**kwargs)
         return _SETTINGS_CACHE
 
-    @validator('webhook_secret', 'marketplace_webhook_secret', pre=True)
+    @field_validator('webhook_secret', 'marketplace_webhook_secret', mode='before')
     @staticmethod
     def str2bytes(value: str | bytes) -> bytes:
         if isinstance(value, str):
