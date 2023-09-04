@@ -91,9 +91,10 @@ async def remove_assignee(_request: Request) -> Response:
     return json_response({'assignees': []})
 
 
-config_with_reviewers = b"""
+sample_config = b"""
 [tool.hooky]
 reviewers = ['user1', 'user2']
+assignees = ['user3', 'user4']
 """
 
 
@@ -103,7 +104,7 @@ async def py_project_content(request: Request) -> Response:
         return json_response({}, status=404)
     else:
         return json_response(
-            {'content': base64.b64encode(config_with_reviewers).decode(), 'encoding': 'base64', 'type': 'file'}
+            {'content': base64.b64encode(sample_config).decode(), 'encoding': 'base64', 'type': 'file'}
         )
 
 

@@ -1,5 +1,6 @@
 import enum
 from dataclasses import dataclass, field
+from typing import Final
 
 import redis
 from github.Issue import Issue as GhIssue
@@ -12,10 +13,12 @@ from . import models
 from .common import BaseActor
 
 
-class IssueAction(str, enum.Enum):
-    # TODO: Use StrEnum in Python 3.11
+class IssueAction(enum.StrEnum):
     OPENED = 'opened'
     REOPENED = 'reopened'
+
+
+ISSUE_ACTIONS_TO_PROCESS: Final[tuple[IssueAction, ...]] = (IssueAction.OPENED,)
 
 
 def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool, str]:
@@ -30,8 +33,8 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
     - use "please update" magic comment to reassign to the author
     - reassign from the author back to contributor after any author's comment
     """
-    if event.action not in iter(IssueAction):
-        return False, f'Ignored action "{event.action}"'
+    if event.action not in ISSUE_ACTIONS_TO_PROCESS:
+        return False, f'Ignoring event action "{event.action}"'
 
     with get_repo_client(event.repository.full_name, settings) as gh_repo:
         gh_issue = gh_repo.get_issue(event.issue.number)
@@ -42,7 +45,7 @@ def process_issue(*, event: models.IssueEvent, settings: Settings) -> tuple[bool
         label_assign = LabelAssign(
             gh_issue=gh_issue,
             gh_repo=gh_repo,
-            action=IssueAction,
+            action=IssueAction(event.action),
             author=event.issue.user,
             repo_fullname=event.repository.full_name,
             config=config,
@@ -59,20 +62,25 @@ class LabelAssign(BaseActor):
     gh_issue: GhIssue
     gh_repo: GhRepository
     action: IssueAction
-    author: str
+    author: models.User
     repo_fullname: str
     config: RepoConfig
     settings: Settings
     assignees: list[str] = field(init=False)
 
     def __post_init__(self):
-        self.assignees = self.config.assignees or [user.login for user in self.gh_repo.get_collaborators()]
+        self.assignees = self.config.assignees
 
-    def assign_new(self):
+    def assign_new(self) -> tuple[bool, str]:
+        if self.action not in ISSUE_ACTIONS_TO_PROCESS:
+            return False, f'Ignoring issue action "{self.action}"'
+
+        if self.author.login in self.assignees:
+            return False, f'@{self.author.login} is in repo assignees list, doing nothing'
+
         assignee = self._select_assignee()
         self._assign_user(assignee)
         self._add_label(self.config.unconfirmed_label)
-        self._add_reaction()
 
         return (True, f'@{assignee} successfully assigned to issue, "{self.config.unconfirmed_label}" label added')
 
@@ -87,10 +95,7 @@ class LabelAssign(BaseActor):
                 assignee_index %= assignees_count
                 redis_client.set(key, assignee_index + 1)
 
-            assignee = self.assignees[assignee_index % assignees_count]
-
-        self.gh_issue.edit(body=f'{self.gh_issue.body}\n\nSelected Assignee: @{assignee}')
-        return assignee
+        return self.assignees[assignee_index % assignees_count]
 
     def _assign_user(self, username: str) -> None:
         if username in (gh_user.login for gh_user in self.gh_issue.assignees):

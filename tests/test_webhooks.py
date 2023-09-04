@@ -40,7 +40,7 @@ def test_created(client: Client):
         }
     )
     assert r.status_code == 202, r.text
-    assert r.text == 'Ignored action "created", no action taken'
+    assert r.text == 'Ignoring event action "created", no action taken'
 
 
 def test_please_review(dummy_server: DummyServer, client: Client):
@@ -226,7 +226,7 @@ def test_issue_opened(dummy_server: DummyServer, client: Client):
         }
     )
     assert r.status_code == 200, r.text
-    assert r.text == '@user1 successfully assigned to issue, "unconfirmed" label added'
+    assert r.text == '@user3 successfully assigned to issue, "unconfirmed" label added'
     assert dummy_server.log == [
         'GET /repos/user1/repo1/installation > 200',
         'POST /app/installations/654321/access_tokens > 200',
@@ -235,9 +235,40 @@ def test_issue_opened(dummy_server: DummyServer, client: Client):
         'GET /repos/user1/repo1 > 200',
         'GET /repos/user1/repo1/contents/.hooky.toml > 404',
         'GET /repos/user1/repo1/contents/pyproject.toml > 200',
-        'GET /repos/user1/repo1/collaborators > 200',
-        'PATCH /repos/user1/repo1/issues/123 > 200',
         'POST /repos/user1/repo1/issues/123/assignees > 200',
         'POST /repos/user1/repo1/issues/123/labels > 200',
-        'POST /repos/user1/repo1/issues/123/reactions > 200',
     ]
+
+
+def test_issue_opened_by_assignee(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
+        {
+            'action': 'opened',
+            'issue': {'user': {'login': 'user3'}, 'number': 123},
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
+    assert r.status_code == 202, r.text
+    assert r.text == '@user3 is in repo assignees list, doing nothing, no action taken'
+    assert dummy_server.log == [
+        'GET /repos/user1/repo1/installation > 200',
+        'POST /app/installations/654321/access_tokens > 200',
+        'GET /repos/user1/repo1 > 200',
+        'GET /repos/user1/repo1/issues/123 > 200',
+        'GET /repos/user1/repo1 > 200',
+        'GET /repos/user1/repo1/contents/.hooky.toml > 404',
+        'GET /repos/user1/repo1/contents/pyproject.toml > 200',
+    ]
+
+
+def test_issue_reopened(dummy_server: DummyServer, client: Client):
+    r = client.webhook(
+        {
+            'action': 'reopened',
+            'issue': {'user': {'login': 'user1'}, 'number': 123},
+            'repository': {'full_name': 'user1/repo1', 'owner': {'login': 'user1'}},
+        }
+    )
+    assert r.status_code == 202, r.text
+    assert r.text == 'Ignoring event action "reopened", no action taken'
+    assert dummy_server.log == []
