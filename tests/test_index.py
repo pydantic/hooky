@@ -3,7 +3,13 @@ import pytest
 from .conftest import Client
 
 
-@pytest.mark.parametrize('method', ['get', 'head'])
+@pytest.mark.parametrize(
+    'method',
+    [
+        'get',
+        pytest.param('head', marks=[pytest.mark.xfail(reason='See https://github.com/tiangolo/fastapi/issues/1773')]),
+    ],
+)
 def test_index(client: Client, method):
     r = client.request(method, '/')
     assert r.status_code == 200, r.text
@@ -15,7 +21,13 @@ def test_index(client: Client, method):
         assert r.text == ''
 
 
-@pytest.mark.parametrize('method', ['get', 'head'])
+@pytest.mark.parametrize(
+    'method',
+    [
+        'get',
+        pytest.param('head', marks=[pytest.mark.xfail(reason='See https://github.com/tiangolo/fastapi/issues/1773')]),
+    ],
+)
 def test_favicon(client: Client, method):
     r = client.request(method, '/favicon.ico')
     assert r.status_code == 200, r.text

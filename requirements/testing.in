@@ -1,7 +1,7 @@
 aiohttp
 coverage[toml]
 dirty-equals
-foxglove-web @ git+https://github.com/lig/foxglove@lig/upgrade-to-pydantic-v2
+foxglove-web @ git+https://github.com/lig/foxglove@76156d8ed97463658b30a7aea49ca7231214c00f
 pytest
 pytest-mock
 pytest-sugar

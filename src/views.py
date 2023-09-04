@@ -17,7 +17,6 @@ THIS_DIR = Path(__file__).parent
 
 
 @app.get('/')
-@app.head('/')
 def index():
     index_content = (THIS_DIR / 'index.html').read_text()
     commit = os.getenv('RENDER_GIT_COMMIT', '???')
@@ -26,7 +25,6 @@ def index():
 
 
 @app.get('/favicon.ico')
-@app.head('/favicon.ico')
 def favicon():
     return FileResponse(THIS_DIR / 'favicon.ico')
 
