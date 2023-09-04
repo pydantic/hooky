@@ -7,7 +7,7 @@ from .conftest import Client
     'method',
     [
         'get',
-        pytest.param('head', marks=[pytest.mark.xfail(reason='See https://github.com/tiangolo/fastapi/issues/1773')]),
+        pytest.param('head', marks=[pytest.mark.xfail(reason='Looks like a TestClient bug with the "HEAD" method')]),
     ],
 )
 def test_index(client: Client, method):
@@ -25,7 +25,7 @@ def test_index(client: Client, method):
     'method',
     [
         'get',
-        pytest.param('head', marks=[pytest.mark.xfail(reason='See https://github.com/tiangolo/fastapi/issues/1773')]),
+        pytest.param('head', marks=[pytest.mark.xfail(reason='Looks like a TestClient bug with the "HEAD" method')]),
     ],
 )
 def test_favicon(client: Client, method):

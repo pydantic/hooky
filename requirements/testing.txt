@@ -49,7 +49,7 @@ dirty-equals==0.6.0
     # via -r requirements/testing.in
 fastapi==0.103.1
     # via foxglove-web
-foxglove-web @ git+https://github.com/lig/foxglove@76156d8ed97463658b30a7aea49ca7231214c00f
+foxglove-web==0.0.39
     # via -r requirements/testing.in
 frozenlist==1.4.0
     # via
