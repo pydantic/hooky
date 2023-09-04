@@ -1,10 +1,11 @@
+import typing
 from time import time
 
 import jwt
 import redis
 from cryptography.hazmat.backends import default_backend
-from github import Github
-from github.Repository import Repository as GhRepository
+from cryptography.hazmat.backends.openssl.backend import Backend as OpenSSLBackend
+from github import Auth, Github, Repository as GhRepository
 from requests import Session
 
 from .settings import Settings, log
@@ -18,7 +19,7 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> 'GithubContext':
     This could all be async, but since it's call from sync code (that can't be async because of GitHub)
     there's no point in making it async.
     """
-    with redis.from_url(settings.redis_dsn) as redis_client:
+    with redis.from_url(str(settings.redis_dsn)) as redis_client:
         cache_key = f'github_access_token_{repo_full_name}'
         if access_token := redis_client.get(cache_key):
             access_token = access_token.decode()
@@ -27,7 +28,7 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> 'GithubContext':
 
         pem_bytes = settings.github_app_secret_key.read_bytes()
 
-        private_key = default_backend().load_pem_private_key(pem_bytes, None)
+        private_key = typing.cast(OpenSSLBackend, default_backend()).load_pem_private_key(pem_bytes, None, False)
 
         now = int(time())
         payload = {'iat': now - 30, 'exp': now + 60, 'iss': settings.github_app_id}
@@ -52,7 +53,7 @@ def get_repo_client(repo_full_name: str, settings: Settings) -> 'GithubContext':
 
 class GithubContext:
     def __init__(self, access_token: str, repo_full_name: str):
-        self._gh = Github(access_token, base_url=github_base_url)
+        self._gh = Github(auth=Auth.Token(access_token), base_url=github_base_url)
         self._repo = self._gh.get_repo(repo_full_name)
 
     def __enter__(self) -> GhRepository:

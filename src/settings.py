@@ -1,4 +1,5 @@
-from pydantic import BaseSettings, FilePath, RedisDsn, SecretBytes
+from pydantic import FilePath, RedisDsn, SecretBytes
+from pydantic_settings import BaseSettings
 
 __all__ = 'Settings', 'log'
 _SETTINGS_CACHE: 'Settings | None' = None

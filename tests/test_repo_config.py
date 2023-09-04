@@ -70,7 +70,7 @@ unconfirmed_label = 'unconfirmed label'
 def test_get_config_valid():
     repo = FakeRepo(valid_config)
     config = RepoConfig._load_raw(repo)
-    assert config.dict() == {
+    assert config.model_dump() == {
         'reviewers': ['foobar', 'barfoo'],
         'request_update_trigger': 'eggs',
         'request_review_trigger': 'spam',

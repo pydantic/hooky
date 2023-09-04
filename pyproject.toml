@@ -7,13 +7,15 @@ dependencies = [
     'cryptography',
     'fastapi',
     'httptools',
+    'pydantic-settings',
+    'pydantic',
     'PyGithub',
     'PyJWT',
     'redis',
     'requests',
+    'rtoml',
     'uvicorn',
     'uvloop',
-    'rtoml',
 ]
 
 [tool.ruff]

@@ -151,7 +151,7 @@ class LabelAssign(BaseActor):
 
         # reviewer not found in the PR body, choose a reviewer by round-robin
         key = f'reviewer:{self.repo_fullname}'
-        with redis.from_url(self.settings.redis_dsn) as redis_client:
+        with redis.from_url(str(self.settings.redis_dsn)) as redis_client:
             reviewer_index = redis_client.incr(key) - 1
             # so that key never hits 2**64 and causes an error
             if reviewer_index >= self.settings.reviewer_index_multiple * len(self.reviewers):

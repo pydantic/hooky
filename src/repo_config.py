@@ -31,26 +31,26 @@ class RepoConfig(BaseModel):
 
         repo = pr.base.repo if pr is not None else issue.repository
 
-        with redis.from_url(settings.redis_dsn) as redis_client:
+        with redis.from_url(str(settings.redis_dsn)) as redis_client:
             repo_ref = pr.base.ref if pr is not None else repo.default_branch
             repo_cache_key = f'config_{repo.full_name}'
 
             if pr is not None:
                 pr_cache_key = f'{repo_cache_key}_{repo_ref}'
                 if pr_config := redis_client.get(pr_cache_key):
-                    return RepoConfig.parse_raw(pr_config)
+                    return RepoConfig.model_validate_json(pr_config)
                 if pr_config := cls._load_raw(repo, ref=repo_ref):
-                    redis_client.setex(pr_cache_key, settings.config_cache_timeout, pr_config.json())
+                    redis_client.setex(pr_cache_key, settings.config_cache_timeout, pr_config.model_dump_json())
                     return pr_config
 
             if repo_config := redis_client.get(repo_cache_key):
-                return RepoConfig.parse_raw(repo_config)
+                return RepoConfig.model_validate_json(repo_config)
             if repo_config := cls._load_raw(repo):
-                redis_client.setex(repo_cache_key, settings.config_cache_timeout, repo_config.json())
+                redis_client.setex(repo_cache_key, settings.config_cache_timeout, repo_config.model_dump_json())
                 return repo_config
 
             default_config = cls()
-            redis_client.setex(repo_cache_key, settings.config_cache_timeout, default_config.json())
+            redis_client.setex(repo_cache_key, settings.config_cache_timeout, default_config.model_dump_json())
             return default_config
 
     @classmethod
@@ -81,7 +81,7 @@ class RepoConfig(BaseModel):
             return None
 
         try:
-            config = cls.parse_obj(hooky_config)
+            config = cls.model_validate(hooky_config)
         except ValidationError as e:
             log(f'{prefix}, Error validating hooky config, using defaults')
             log(indent(f'{type(e).__name__}: {e}', '  '))

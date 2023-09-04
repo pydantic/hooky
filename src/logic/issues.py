@@ -78,7 +78,7 @@ class LabelAssign(BaseActor):
 
     def _select_assignee(self) -> str:
         key = f'assignee:{self.repo_fullname}'
-        with redis.from_url(self.settings.redis_dsn) as redis_client:
+        with redis.from_url(str(self.settings.redis_dsn)) as redis_client:
             assignees_count = len(self.assignees)
             assignee_index = redis_client.incr(key) - 1
 
