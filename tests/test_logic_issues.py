@@ -2,6 +2,7 @@ import pytest
 import redis
 
 from src.logic.issues import IssueAction, LabelAssign
+from src.logic.models import User
 from src.repo_config import RepoConfig
 
 from .blocks import AttrBlock, CallableBlock, IterBlock
@@ -31,7 +32,7 @@ def test_assign_new(settings, gh_issue, gh_repo, redis_cli):
         gh_issue=gh_issue,
         gh_repo=gh_repo,
         action=IssueAction.OPENED,
-        author='the_author',
+        author=User(login='the_author'),
         repo_fullname='org/repo',
         config=RepoConfig(assignees=['user1', 'user2']),
         settings=settings,
@@ -39,18 +40,13 @@ def test_assign_new(settings, gh_issue, gh_repo, redis_cli):
     acted, msg = la.assign_new()
     assert acted, msg
     assert msg == '@user1 successfully assigned to issue, "unconfirmed" label added'
-    assert gh_issue.__history__ == [
-        "edit: Call(body='this is the issue body\\n\\nSelected Assignee: @user1')",
-        "add_to_assignees: Call('user1')",
-        "add_to_labels: Call('unconfirmed')",
-        "create_reaction: Call('+1')",
-    ]
+    assert gh_issue.__history__ == ["add_to_assignees: Call('user1')", "add_to_labels: Call('unconfirmed')"]
 
     la2 = LabelAssign(
         gh_issue=gh_issue,
         gh_repo=gh_repo,
         action=IssueAction.OPENED,
-        author='the_author',
+        author=User(login='the_author'),
         repo_fullname='org/repo',
         config=RepoConfig(assignees=['user1', 'user2']),
         settings=settings,
@@ -65,7 +61,7 @@ def test_assign_new_one_assignee(settings, gh_issue, gh_repo, redis_cli):
         gh_issue=gh_issue,
         gh_repo=gh_repo,
         action=IssueAction.OPENED,
-        author='the_author',
+        author=User(login='the_author'),
         repo_fullname='org/repo',
         config=RepoConfig(assignees=['user1']),
         settings=settings,
@@ -73,12 +69,37 @@ def test_assign_new_one_assignee(settings, gh_issue, gh_repo, redis_cli):
     acted, msg = la.assign_new()
     assert acted, msg
     assert msg == '@user1 successfully assigned to issue, "unconfirmed" label added'
-    assert gh_issue.__history__ == [
-        "edit: Call(body='this is the issue body\\n\\nSelected Assignee: @user1')",
-        "add_to_assignees: Call('user1')",
-        "add_to_labels: Call('unconfirmed')",
-        "create_reaction: Call('+1')",
-    ]
+    assert gh_issue.__history__ == ["add_to_assignees: Call('user1')", "add_to_labels: Call('unconfirmed')"]
+
+
+def test_do_not_assign_from_one_of_assignees(settings, gh_issue, gh_repo, redis_cli):
+    la = LabelAssign(
+        gh_issue=gh_issue,
+        gh_repo=gh_repo,
+        action=IssueAction.OPENED,
+        author=User(login='user2'),
+        repo_fullname='org/repo',
+        config=RepoConfig(assignees=['user1', 'user2']),
+        settings=settings,
+    )
+    acted, msg = la.assign_new()
+    assert not acted, msg
+    assert gh_issue.__history__ == []
+
+
+def test_do_not_assign_on_reopen(settings, gh_issue, gh_repo, redis_cli):
+    la = LabelAssign(
+        gh_issue=gh_issue,
+        gh_repo=gh_repo,
+        action=IssueAction.REOPENED,
+        author=User(login='the_author'),
+        repo_fullname='org/repo',
+        config=RepoConfig(assignees=['user1']),
+        settings=settings,
+    )
+    acted, msg = la.assign_new()
+    assert not acted, msg
+    assert gh_issue.__history__ == []
 
 
 def test_many_assignments(settings, gh_issue, gh_repo, redis_cli: redis.Redis):
@@ -86,7 +107,7 @@ def test_many_assignments(settings, gh_issue, gh_repo, redis_cli: redis.Redis):
         gh_issue=gh_issue,
         gh_repo=gh_repo,
         action=IssueAction.OPENED,
-        author='the_author',
+        author=User(login='the_author'),
         repo_fullname='org/repo',
         config=RepoConfig(assignees=['user1', 'user2', 'user3', 'user4']),
         settings=settings,
