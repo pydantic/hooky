@@ -12,5 +12,5 @@ class BaseActor:
     def _get_role_regex(cls) -> re.Pattern:
         if cls._ROLE_REGEX is None:
             # for example "Selected Assignee: @samuelcolvin" or "Selected Reviewer: @samuelcolvin"
-            cls._ROLE_REGEX = re.compile(rf'selected[ -]{cls.ROLE}:\s*@([\w\-]+)$', flags=re.I)
+            cls._ROLE_REGEX = re.compile(rf'selected[ -]{cls.ROLE}:\s*@([\w\-]+)\s*$', flags=re.I)
         return cls._ROLE_REGEX
